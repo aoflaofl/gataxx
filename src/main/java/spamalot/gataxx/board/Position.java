@@ -166,6 +166,11 @@ public final class Position {
         if (!isGameOver()) {
             return Outcome.ONGOING;
         }
+        return outcomeByCount();
+    }
+
+    /** Winner by piece count alone, ignoring whether the game is actually over. */
+    public Outcome outcomeByCount() {
         int cx = count(X);
         int co = count(O);
         return cx > co ? Outcome.X_WINS : co > cx ? Outcome.O_WINS : Outcome.DRAW;
