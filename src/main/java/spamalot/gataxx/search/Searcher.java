@@ -23,6 +23,8 @@ public final class Searcher {
     private static final int NODE_CHECK_MASK = 1023;
 
     private final Evaluator evaluator;
+    private final TranspositionTable tt;
+    private final TranspositionTable.Entry ttEntry = new TranspositionTable.Entry();
     private final int[][] moveBuf = new int[MAX_PLY][Position.MAX_MOVES];
     private final int[][] scoreBuf = new int[MAX_PLY][Position.MAX_MOVES];
     private final int[][] pv = new int[MAX_PLY][MAX_PLY];
@@ -34,9 +36,29 @@ public final class Searcher {
     private long deadlineNanos;
     private long maxNodes;
     private int[] prevPv = new int[0];
+    private boolean exactDepthHitsOnly;
 
+    /** A searcher without a transposition table. */
     public Searcher(Evaluator evaluator) {
+        this(evaluator, null);
+    }
+
+    /**
+     * @param tt shared across searches so later moves benefit from earlier work; may be null. The
+     *     caller must not use it from another thread while this searcher runs.
+     */
+    public Searcher(Evaluator evaluator, TranspositionTable tt) {
         this.evaluator = evaluator;
+        this.tt = tt;
+    }
+
+    /**
+     * Test hook: only accept table hits searched to exactly the depth now required. Then the result
+     * is identical to an unpruned NegaMax, which lets tests check the bound logic exactly. Normal
+     * play accepts deeper hits, which is stronger but not reproducible by a fixed-depth search.
+     */
+    void setExactDepthHitsOnly(boolean exact) {
+        this.exactDepthHitsOnly = exact;
     }
 
     /** Asks the running (or about-to-run) search to finish as soon as possible. */
@@ -57,12 +79,15 @@ public final class Searcher {
         long softNanos = limits.softMs() > 0 ? limits.softMs() * 1_000_000L : Long.MAX_VALUE;
         int maxDepth = limits.maxDepth() > 0 ? Math.min(limits.maxDepth(), MAX_DEPTH) : MAX_DEPTH;
 
+        if (tt != null) {
+            tt.newSearch();
+        }
         int[] rootMoves = moveBuf[0];
         int n = root.generateMoves(rootMoves);
         if (n == 0) {
             return new SearchResult(Move.NONE, terminalScore(root, 0), 0, 0, 0, new int[0]);
         }
-        orderMoves(root, rootMoves, scoreBuf[0], n, Move.NONE);
+        orderMoves(root, rootMoves, scoreBuf[0], n, Move.NONE, Move.NONE);
         SearchResult best = new SearchResult(rootMoves[bestScoredIndex(scoreBuf[0], n)], 0, 0, 0, 0, new int[0]);
 
         for (int depth = 1; depth <= maxDepth; depth++) {
@@ -105,6 +130,39 @@ public final class Searcher {
         if (depth == 0) {
             return pos.isGameOver() ? terminalScore(pos, ply) : evaluator.evaluate(pos);
         }
+
+        // The 100-half-move rule makes a result depend on the clock, which the hash ignores. Only
+        // use the table where the subtree cannot reach the limit.
+        boolean useTt = tt != null && pos.halfmoveClock() + depth < Position.HALFMOVE_LIMIT;
+        int ttMove = Move.NONE;
+        long hash = pos.hash();
+        if (useTt) {
+            tt.probe(hash, ttEntry);
+            if (ttEntry.found) {
+                ttMove = ttEntry.move;
+                boolean deepEnough = exactDepthHitsOnly ? ttEntry.depth == depth : ttEntry.depth >= depth;
+                if (ply > 0 && deepEnough) {
+                    int s = scoreFromTable(ttEntry.score, ply);
+                    switch (ttEntry.bound) {
+                        case TranspositionTable.BOUND_EXACT -> {
+                            return Math.max(alpha, Math.min(beta, s));
+                        }
+                        case TranspositionTable.BOUND_LOWER -> {
+                            if (s >= beta) {
+                                return beta;
+                            }
+                        }
+                        case TranspositionTable.BOUND_UPPER -> {
+                            if (s <= alpha) {
+                                return alpha;
+                            }
+                        }
+                        default -> { }
+                    }
+                }
+            }
+        }
+
         int[] moves = moveBuf[ply];
         int n = pos.generateMoves(moves);
         if (n == 0) {
@@ -112,8 +170,10 @@ public final class Searcher {
         }
         int[] scores = scoreBuf[ply];
         int hint = onPv && ply < prevPv.length ? prevPv[ply] : Move.NONE;
-        orderMoves(pos, moves, scores, n, hint);
+        orderMoves(pos, moves, scores, n, hint, ttMove);
 
+        int originalAlpha = alpha;
+        int bestMove = Move.NONE;
         for (int i = 0; i < n; i++) {
             // Lazy selection sort: only pays for ordering as far as we get before a cutoff.
             int bi = i;
@@ -130,24 +190,55 @@ public final class Searcher {
                 return 0;
             }
             if (score >= beta) {
+                if (useTt) {
+                    tt.store(hash, depth, TranspositionTable.BOUND_LOWER, scoreToTable(beta, ply), move);
+                }
                 return beta;
             }
             if (score > alpha) {
                 alpha = score;
+                bestMove = move;
                 pv[ply][0] = move;
                 System.arraycopy(pv[ply + 1], 0, pv[ply], 1, pvLen[ply + 1]);
                 pvLen[ply] = pvLen[ply + 1] + 1;
             }
         }
+        if (useTt) {
+            int bound = alpha > originalAlpha ? TranspositionTable.BOUND_EXACT : TranspositionTable.BOUND_UPPER;
+            tt.store(hash, depth, bound, scoreToTable(alpha, ply), bestMove);
+        }
         return alpha;
     }
 
-    /** Scores moves for ordering: the hint first, then by material swing, preferring clones. */
-    private static void orderMoves(Position pos, int[] moves, int[] scores, int n, int hint) {
+    /** Mate scores are relative to the root; in the table they must be relative to the node. */
+    private static int scoreToTable(int score, int ply) {
+        if (score >= WIN - MAX_PLY) {
+            return score + ply;
+        }
+        if (score <= -(WIN - MAX_PLY)) {
+            return score - ply;
+        }
+        return score;
+    }
+
+    private static int scoreFromTable(int score, int ply) {
+        if (score >= WIN - MAX_PLY) {
+            return score - ply;
+        }
+        if (score <= -(WIN - MAX_PLY)) {
+            return score + ply;
+        }
+        return score;
+    }
+
+    /** Scores moves for ordering: the PV move, then the table move, then by material swing (clones first). */
+    private static void orderMoves(Position pos, int[] moves, int[] scores, int n, int pvMove, int ttMove) {
         for (int i = 0; i < n; i++) {
             int m = moves[i];
-            if (m == hint) {
+            if (m == pvMove) {
                 scores[i] = Integer.MAX_VALUE;
+            } else if (m == ttMove) {
+                scores[i] = Integer.MAX_VALUE - 1;
             } else {
                 int clone = Move.isClone(m) ? 1 : 0;
                 scores[i] = (pos.captureCount(m) + clone) * 2 + clone;

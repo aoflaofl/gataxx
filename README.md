@@ -29,13 +29,13 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `go` | `depth`, `nodes`, `movetime`, `wtime`/`btime`, `winc`/`binc`, `movestogo`, `infinite`. Plain `go` means `infinite`. |
 | `stop` | Ends the search and prints `bestmove`. |
 | `quit` | Exits. |
-| `setoption` | Accepted and ignored (no options yet). |
+| `setoption name Hash value <MB>` | Transposition table size in MB (default 16, `0` disables it). The table is cleared on `uainewgame`. Unknown options are ignored with an `info string`. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`).
 The engine replies `info depth .. score cp .. nodes .. time .. nps .. pv ..` after each
-completed search depth, then `bestmove <move>`. A pass is `bestmove 0000`.
+completed search depth (including `hashfull`, the table fill in permille), then `bestmove <move>`. A pass is `bestmove 0000`.
 
 ## Measuring strength: the match harness
 

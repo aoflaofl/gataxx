@@ -37,8 +37,57 @@ class UaiEngineTest {
         List<String> out = run("uai\n");
         assertTrue(out.get(0).startsWith("id name "), out.toString());
         assertTrue(out.get(1).startsWith("id author "), out.toString());
-        assertEquals("uaiok", out.get(2));
-        assertEquals(3, out.size());
+        assertEquals("option name Hash type spin default 16 min 0 max 1024", out.get(2));
+        assertEquals("uaiok", out.get(3));
+        assertEquals(4, out.size());
+    }
+
+    private static int lastHashfull(List<String> out) {
+        String last = out.stream().filter(l -> l.startsWith("info depth ")).reduce((x, y) -> y).orElseThrow();
+        String[] t = last.split(" ");
+        return Integer.parseInt(t[Arrays.asList(t).indexOf("hashfull") + 1]);
+    }
+
+    @Test
+    void tableIsUsedAndReportedInInfo() {
+        List<String> out = run("position startpos\ngo depth 6\n");
+        assertTrue(lastHashfull(out) > 0, out.toString());
+    }
+
+    @Test
+    void uainewgameClearsTable() {
+        List<String> out = run("position startpos\ngo depth 6\nuainewgame\nposition startpos\ngo depth 1\n");
+        assertEquals(0, lastHashfull(out), out.toString());
+    }
+
+    @Test
+    void hashZeroDisablesTable() {
+        List<String> out = run("setoption name Hash value 0\nposition startpos\ngo depth 4\n");
+        assertTrue(out.stream().filter(l -> l.startsWith("info depth ")).noneMatch(l -> l.contains("hashfull")), out.toString());
+        assertTrue(Position.startPos().isLegal(Move.parse(bestmove(out))));
+    }
+
+    @Test
+    void hashCanBeResizedAndStillSearches() {
+        List<String> out = run("setoption name Hash value 1\nposition startpos\ngo depth 5\n"
+                + "setoption name hash value 64\ngo depth 5\n");
+        assertEquals(2, out.stream().filter(l -> l.startsWith("bestmove ")).count(), out.toString());
+        assertFalse(out.stream().anyMatch(l -> l.contains("error")), out.toString());
+    }
+
+    @Test
+    void badHashValuesReported() {
+        List<String> out = run("setoption name Hash value abc\nsetoption name Hash value -1\n"
+                + "setoption name Hash value 99999\nsetoption name Hash\nisready\n");
+        assertEquals(4, out.stream().filter(l -> l.startsWith("info string error")).count(), out.toString());
+        assertEquals("readyok", out.get(out.size() - 1));
+    }
+
+    @Test
+    void unknownOptionIgnoredWithNote() {
+        List<String> out = run("setoption name Frobnicate value 3\nisready\n");
+        assertEquals("info string unknown option: Frobnicate", out.get(0));
+        assertEquals("readyok", out.get(1));
     }
 
     @Test

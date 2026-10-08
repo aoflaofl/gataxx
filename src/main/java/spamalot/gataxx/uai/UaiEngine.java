@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Perft;
@@ -13,6 +14,7 @@ import spamalot.gataxx.eval.MaterialEvaluator;
 import spamalot.gataxx.search.SearchLimits;
 import spamalot.gataxx.search.SearchResult;
 import spamalot.gataxx.search.Searcher;
+import spamalot.gataxx.search.TranspositionTable;
 
 /**
  * A Universal Ataxx Interface (UAI) engine front end: reads commands from a reader, writes replies
@@ -22,6 +24,9 @@ public final class UaiEngine {
     public static final String NAME = "gataxx";
     public static final String AUTHOR = "spamalot";
 
+    public static final int DEFAULT_HASH_MB = 16;
+    public static final int MAX_HASH_MB = 1024;
+
     private final BufferedReader in;
     private final PrintWriter out;
     private final Object outLock = new Object();
@@ -29,6 +34,7 @@ public final class UaiEngine {
 
     // Touched only by the command-reading thread.
     private Position position = Position.startPos();
+    private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
     private Searcher searcher;
     private Thread searchThread;
     private boolean searchIsInfinite;
@@ -75,14 +81,21 @@ public final class UaiEngine {
                 case "uai" -> {
                     send("id name " + NAME + " " + spamalot.gataxx.Main.version());
                     send("id author " + AUTHOR);
+                    send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
                     send("uaiok");
                 }
                 case "isready" -> send("readyok");
                 case "uainewgame" -> {
                     stopAndAwaitSearch();
                     position = Position.startPos();
+                    if (tt != null) {
+                        tt.clear();
+                    }
                 }
-                case "setoption" -> { /* no options yet */ }
+                case "setoption" -> {
+                    stopAndAwaitSearch();
+                    setOption(tokens);
+                }
                 case "position" -> {
                     stopAndAwaitSearch();
                     setPosition(tokens);
@@ -110,6 +123,31 @@ public final class UaiEngine {
             send("info string error: " + e.getMessage());
         }
         return true;
+    }
+
+    /** {@code setoption name <id> [value <x>]}; the name may contain spaces. */
+    private void setOption(String[] tokens) {
+        int valueAt = Arrays.asList(tokens).indexOf("value");
+        if (tokens.length < 3 || !tokens[1].equals("name")) {
+            throw new IllegalArgumentException("setoption needs 'name <id> [value <x>]'");
+        }
+        String name = String.join(" ", Arrays.copyOfRange(tokens, 2, valueAt < 0 ? tokens.length : valueAt));
+        String value = valueAt < 0 ? "" : String.join(" ", Arrays.copyOfRange(tokens, valueAt + 1, tokens.length));
+        if (name.equalsIgnoreCase("Hash")) {
+            int mb;
+            try {
+                mb = Integer.parseInt(value);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Hash needs a number of megabytes, got '" + value + "'", e);
+            }
+            if (mb < 0 || mb > MAX_HASH_MB) {
+                throw new IllegalArgumentException("Hash must be between 0 and " + MAX_HASH_MB + " MB");
+            }
+            tt = null; // free the old table before allocating the new one
+            tt = mb == 0 ? null : new TranspositionTable(mb);
+        } else {
+            send("info string unknown option: " + name);
+        }
     }
 
     /** {@code position startpos|fen <fen> [moves <m1> <m2> ...]}; leaves the position unchanged on error. */
@@ -148,7 +186,7 @@ public final class UaiEngine {
     private void go(String[] tokens) {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
-        Searcher s = new Searcher(evaluator);
+        Searcher s = new Searcher(evaluator, tt);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
         searchThread = new Thread(() -> {
@@ -176,6 +214,9 @@ public final class UaiEngine {
                 .append(" nodes ").append(r.nodes())
                 .append(" time ").append(r.timeMs())
                 .append(" nps ").append(r.nodes() * 1000 / Math.max(1, r.timeMs()));
+        if (tt != null) {
+            sb.append(" hashfull ").append(tt.hashfull());
+        }
         if (r.pv().length > 0) {
             sb.append(" pv");
             for (int m : r.pv()) {

@@ -28,8 +28,10 @@ public final class Position {
     private final int sideToMove;
     private final int halfmoveClock;
     private final int fullmoveNumber;
+    private final long hash;
 
-    private Position(long x, long o, long walls, int sideToMove, int halfmoveClock, int fullmoveNumber) {
+    private Position(long x, long o, long walls, int sideToMove, int halfmoveClock, int fullmoveNumber, long hash) {
+        this.hash = hash;
         this.x = x;
         this.o = o;
         this.walls = walls;
@@ -88,7 +90,7 @@ public final class Position {
         try {
             int halfmove = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
             int fullmove = parts.length > 3 ? Integer.parseInt(parts[3]) : 1;
-            return new Position(x, o, walls, side, halfmove, fullmove);
+            return new Position(x, o, walls, side, halfmove, fullmove, Zobrist.compute(x, o, walls, side));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Bad clock in FEN: " + fen, e);
         }
@@ -123,6 +125,11 @@ public final class Position {
                 .append(' ')
                 .append(fullmoveNumber)
                 .toString();
+    }
+
+    /** Zobrist hash of the board and side to move (not the move clocks). */
+    public long hash() {
+        return hash;
     }
 
     public int sideToMove() {
@@ -229,25 +236,33 @@ public final class Position {
         long mine = pieces(sideToMove);
         long theirs = pieces(1 - sideToMove);
         int halfmove;
+        long newHash = hash ^ Zobrist.SIDE_TO_MOVE;
         if (move == Move.PASS) {
             halfmove = halfmoveClock + 1;
         } else {
-            long toBit = 1L << Move.to(move);
+            int to = Move.to(move);
+            long toBit = 1L << to;
             if (Move.isClone(move)) {
                 halfmove = 0;
             } else {
-                mine ^= 1L << Move.from(move);
+                int from = Move.from(move);
+                mine ^= 1L << from;
+                newHash ^= Zobrist.piece(sideToMove, from);
                 halfmove = halfmoveClock + 1;
             }
             mine |= toBit;
+            newHash ^= Zobrist.piece(sideToMove, to);
             long captured = Bitboards.expand1(toBit) & theirs;
             mine |= captured;
             theirs ^= captured;
+            for (long c = captured; c != 0; c &= c - 1) {
+                newHash ^= Zobrist.flip(Long.numberOfTrailingZeros(c));
+            }
         }
         int fullmove = sideToMove == O ? fullmoveNumber + 1 : fullmoveNumber;
         return sideToMove == X
-                ? new Position(mine, theirs, walls, O, halfmove, fullmove)
-                : new Position(theirs, mine, walls, X, halfmove, fullmove);
+                ? new Position(mine, theirs, walls, O, halfmove, fullmove, newHash)
+                : new Position(theirs, mine, walls, X, halfmove, fullmove, newHash);
     }
 
     @Override
