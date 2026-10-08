@@ -200,6 +200,14 @@ public final class Position {
         return n;
     }
 
+    /** Number of enemy pieces {@code move} would convert (0 for a pass). */
+    public int captureCount(int move) {
+        if (move == Move.PASS) {
+            return 0;
+        }
+        return Long.bitCount(Bitboards.expand1(1L << Move.to(move)) & pieces(1 - sideToMove));
+    }
+
     public boolean isLegal(int move) {
         int[] buf = new int[MAX_MOVES];
         int n = generateMoves(buf);
