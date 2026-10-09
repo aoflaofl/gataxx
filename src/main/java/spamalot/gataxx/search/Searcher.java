@@ -44,6 +44,9 @@ public final class Searcher {
     private int qMinCaptures;
     private int qMaxPly;
     private boolean usePvs;
+    private boolean useLmr;
+    private int lmrFullMoves = 4;
+    private int lmrMinDepth = 3;
     private boolean useNullMove;
     private int nullReduction = 2;
     private int nullMinEmpties = 12;
@@ -86,6 +89,23 @@ public final class Searcher {
      */
     public void setPvs(boolean pvs) {
         this.usePvs = pvs;
+    }
+
+    /**
+     * Late-move reductions: in a zero-window search, moves that the ordering ranks {@code fullMoves} or later are searched
+     * one ply shallower; if such a move nevertheless beats the best score, it is searched again at full depth. A selective,
+     * non-exact technique that bets the ordering puts the best move early. Needs {@link #setPvs PVS} to have any effect.
+     *
+     * @param fullMoves how many moves per node are always searched at full depth, at least 1
+     * @param minDepth the smallest remaining depth at which reductions apply, at least 2
+     */
+    public void setLmr(boolean enabled, int fullMoves, int minDepth) {
+        if (fullMoves < 1 || minDepth < 2) {
+            throw new IllegalArgumentException("late-move-reduction parameters out of range");
+        }
+        this.useLmr = enabled;
+        this.lmrFullMoves = fullMoves;
+        this.lmrMinDepth = minDepth;
     }
 
     /**
@@ -265,7 +285,11 @@ public final class Searcher {
             Position child = pos.makeMove(move);
             int score;
             if (usePvs && i > 0) {
-                score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
+                boolean reduce = useLmr && i >= lmrFullMoves && depth >= lmrMinDepth;
+                score = -negamax(child, reduce ? depth - 2 : depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
+                if (!aborted && reduce && score > alpha) {
+                    score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
+                }
                 if (!aborted && score > alpha && score < beta) {
                     score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, false, true);
                 }

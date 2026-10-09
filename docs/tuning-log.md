@@ -302,6 +302,26 @@ Null-move pruning saves up to a quarter of the nodes but shows no measurable gai
 roughly +15 Elo, below what 400 games resolve), so it stays an option, off by default. It is clearly not the explanation
 for the gap to Funes.
 
+## Selective search: late-move reductions (LMR)
+
+Options `Lmr` (default **1**), `LmrMoves` (default 3) and `LmrMinDepth` (default 4). In a zero-window node, moves the
+ordering ranks `LmrMoves` or later are searched one ply shallower when the remaining depth is at least `LmrMinDepth`;
+a reduced move that still beats alpha is searched again at full depth. Needs PVS. Not exact: the `bench` score checksum
+changes (depth 6: 420 -> 445, depth 7: 740 -> 729), which is expected.
+
+| Test | Result |
+|---|---|
+| bench depth 7 nodes (off: 139.1M, scoresum 740), full-depth moves / min depth: 4 / 3, 2 / 3, 6 / 3, 3 / 4 | 37.4M / 19.8M / 33.4M / 39.0M; scoresum 638 / 598 / 679 / 729 |
+| Depth reached in 100 ms (4 positions), default vs LMR 4 / 3 vs LMR 2 / 3 | 7,5,5,3 vs 8,7,6,3 vs 9,7,7,4: only +1 to +2 plies |
+| 12 bench positions, engine configuration: LMR vs plain at depth 5 / 6 | same score 10 of 12 / 8 of 12; nodes 40% / 28% of plain |
+| Matches vs the current engine, 100k nodes/move, 400 games: full-depth moves 4 / 2 / 6 / (3, min depth 4) | +16 / +16 / +5 / +24 (+/- 34) |
+| Timed, 50 ms/move, 800 games, fresh seed: (3, min depth 4) / 2 full-depth moves | **+27 +/- 24** (LOS 98.6%) / **+32 +/- 24** (LOS 99.6%) |
+
+Adopted as the default with the milder setting (3 full-depth moves, min depth 4). The benchmark now takes 22.6M nodes
+and 1.9 s at depth 6, 39.0M nodes and 3.1 s at depth 7 (reference checksums 445 and 729). A search of a given nominal
+depth is much cheaper but reduced plies are worth less than full ones, so the strength gain (+27 to +32 Elo) is about
+that of one to one and a half plies, not of the node savings.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

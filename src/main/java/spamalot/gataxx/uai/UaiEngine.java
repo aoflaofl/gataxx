@@ -60,6 +60,9 @@ public final class UaiEngine {
     private int evalCohesion = DEFAULT_EVAL_COHESION;
     private int pvs = 1;
     private int nullMove;
+    private int lmr = 1;
+    private int lmrMoves = 3;
+    private int lmrMinDepth = 4;
     private int nullR = 2;
     private int nullMinEmpties = 12;
     private int evalThreat;
@@ -125,6 +128,9 @@ public final class UaiEngine {
                     send("option name EvalThreat type spin default 0 min -64 max 64");
                     send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name Pvs type spin default 1 min 0 max 1");
+                    send("option name Lmr type spin default 1 min 0 max 1");
+                    send("option name LmrMoves type spin default 3 min 1 max 40");
+                    send("option name LmrMinDepth type spin default 4 min 2 max 20");
                     send("option name NullMove type spin default 0 min 0 max 1");
                     send("option name NullR type spin default 2 min 1 max 6");
                     send("option name NullMinEmpties type spin default 12 min 0 max 49");
@@ -214,6 +220,12 @@ public final class UaiEngine {
             evalThreat = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("Pvs")) {
             pvs = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("Lmr")) {
+            lmr = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("LmrMoves")) {
+            lmrMoves = spinValue(name, value, 1, 40);
+        } else if (name.equalsIgnoreCase("LmrMinDepth")) {
+            lmrMinDepth = spinValue(name, value, 2, 20);
         } else if (name.equalsIgnoreCase("NullMove")) {
             nullMove = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("NullR")) {
@@ -311,6 +323,7 @@ public final class UaiEngine {
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
+        s.setLmr(lmr == 1, lmrMoves, lmrMinDepth);
         return s;
     }
 
