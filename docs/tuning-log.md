@@ -343,6 +343,18 @@ a reminder that several settings tried in one batch will produce lucky outliers.
 depth 6: 8.3M nodes, 0.74 s (scoresum 442); depth 7: 17.7M nodes, 1.44 s (751); depth 8: 60.5M nodes, 4.69 s (421).
 For comparison the original search took 62.1M nodes / 6.6 s at depth 6 and 210.7M nodes / 20.3 s at depth 7.
 
+## Outside engines after the search work (current main, after 1.1.0)
+
+Same setup as before (100 ms/move, one thread each, Hash 128 for gataxx, 6-ply random openings, 400 games, same seeds):
+
+| Opponent | 1.1.0 | Current main (late-move reductions incl. two-ply, PVS, direct quiescence moves) |
+|---|---|---|
+| Funes | 63-337, -291 +/- 47 | **97-303, -198 +/- 40** (+93 Elo closer) |
+| TikTaxx | +165 +/- 27 (800 games) | **331-69 (82.8%), +272 +/- 45** (+107 Elo) |
+
+Both independent opponents show about +100 Elo from the search changes made since 1.1.0, matching the self-play gain of
+the two-ply reductions (+100 +/- 25 timed). Funes remains clearly stronger.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

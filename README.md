@@ -29,6 +29,10 @@ On the other hand, the open-source C++ engine [Funes](https://github.com/Tempate
 about 84% of games at 100 ms per move (about -290 Elo): it searches roughly twice as deep with fewer nodes, so gataxx
 is clearly not the strongest engine available. These are comparisons against a few engines, not ratings.
 
+The development version after 1.1.0 (not yet released) adds late-move reductions to the search. At 100 ms per move it beats
+TikTaxx by 83% of games (+272 Elo, 400 games) and loses to Funes in 76% of games (-198 Elo, 400 games), against
++165 and -291 for 1.1.0.
+
 ## Build and run
 
 ```
