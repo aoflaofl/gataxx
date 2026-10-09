@@ -6,8 +6,15 @@
 
   <groupId>spamalot</groupId>
   <artifactId>gataxx</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <packaging>jar</packaging>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
 
   <name>gataxx</name>
   <description>An Ataxx engine speaking the Universal Ataxx Interface (UAI), searching with NegaMax.</description>

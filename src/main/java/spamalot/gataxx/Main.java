@@ -17,6 +17,6 @@ public final class Main {
     }
 
     public static String version() {
-        return "0.1.0";
+        return "1.0.0";
     }
 }

@@ -5,6 +5,23 @@ It runs at the command line (no GUI) and speaks the Universal Ataxx Interface (U
 a UCI-style protocol. Moves are found with an iterative-deepening NegaMax search with
 alpha-beta pruning.
 
+## Download
+
+Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/gataxx/releases). You need a
+Java 21 (or newer) runtime:
+
+```
+java -jar gataxx-1.0.0.jar
+```
+
+## Strength
+
+Measured by self-play with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every
+experiment): version 1.0.0 beats the open-source C++ engine
+[TikTaxx](https://github.com/kz04px/tiktaxx) by about 73% of games (+156 Elo at 25 ms per move, +180 Elo at
+100 ms per move; one thread each, default settings, random 6-ply openings). That is a comparison against one
+engine, not a rating.
+
 ## Build and run
 
 ```
@@ -72,3 +89,7 @@ core count when using `--movetime`, or CPU contention will skew the results.
 - `search`: `Searcher` (NegaMax/alpha-beta, iterative deepening), limits, time management
 - `uai`: the protocol front end
 - `tools`: the self-play match harness (`Match`, `UaiClient`, `Elo`)
+
+## License
+
+[MIT](LICENSE).
