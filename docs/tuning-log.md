@@ -343,6 +343,11 @@ a reminder that several settings tried in one batch will produce lucky outliers.
 depth 6: 8.3M nodes, 0.74 s (scoresum 442); depth 7: 17.7M nodes, 1.44 s (751); depth 8: 60.5M nodes, 4.69 s (421).
 For comparison the original search took 62.1M nodes / 6.6 s at depth 6 and 210.7M nodes / 20.3 s at depth 7.
 
+## Release 1.2.0
+
+1.2.0 vs the released 1.1.0 (rebuilt from tag `v1.1.0`), timed 50 ms/move, 800 games, 6-ply random openings, one thread each:
+**530-0-270 (66.3%), +117 +/- 26 Elo**. Bench depth 7: 139.1M nodes / 9.9 s (1.1.0) against 17.7M nodes / 1.4 s (1.2.0).
+
 ## Outside engines after the search work (current main, after 1.1.0)
 
 Same setup as before (100 ms/move, one thread each, Hash 128 for gataxx, 6-ply random openings, 400 games, same seeds):

@@ -13,25 +13,23 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.1.0.jar
+java -jar gataxx-1.2.0.jar
 ```
 
 ## Strength
 
-Measured by self-play with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every
-experiment): version 1.1.0 beats the open-source C++ engine
-[TikTaxx](https://github.com/kz04px/tiktaxx) in about 72% of games (+160 Elo at 25 ms per move, +165 Elo at
-100 ms per move; one thread each, default settings, random 6-ply openings). Version 1.0.0 scored the same within
-error (+156 and +180); 1.1.0 searches about twice as fast and beats 1.0.0 by +43 Elo at 50 ms per move in
-self-play, but that speedup did not widen the lead over TikTaxx. A time-handicap test shows TikTaxx needs roughly
-7-8 times gataxx's thinking time per move to match it (25 ms for gataxx against 200 ms for TikTaxx scores level).
-On the other hand, the open-source C++ engine [Funes](https://github.com/Tempate/Funes) beats gataxx 1.1.0 in
-about 84% of games at 100 ms per move (about -290 Elo): it searches roughly twice as deep with fewer nodes, so gataxx
-is clearly not the strongest engine available. These are comparisons against a few engines, not ratings.
+Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
+thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
-The development version after 1.1.0 (not yet released) adds late-move reductions to the search. At 100 ms per move it beats
-TikTaxx by 83% of games (+272 Elo, 400 games) and loses to Funes in 76% of games (-198 Elo, 400 games), against
-+165 and -291 for 1.1.0.
+- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.2.0 wins about 83% of
+  games (+272 Elo, 400 games); version 1.1.0 scored +165.
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.2.0 loses about 76% of games
+  (-198 Elo, 400 games); version 1.1.0 scored -291. Funes is clearly stronger: it searches to a much greater
+  nominal depth with fewer nodes.
+- Version 1.2.0 beats 1.1.0 in 66% of games (+117 Elo, 800 games at 50 ms per move).
+- For 1.1.0, TikTaxx needed roughly 7-8 times gataxx's thinking time per move to score level (not re-measured for 1.2.0).
+
+These are comparisons against a few engines, not ratings.
 
 ## Build and run
 
@@ -66,6 +64,8 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `perft <n>` | Per-move node counts, for debugging. |
 | `bench [depth]` | Searches 16 fixed positions to a fixed depth (default 6) and prints nodes, time, nps and a score checksum, for comparing search changes exactly. |
 | `setoption name Pvs value 0\|1` | Principal variation search (default 1). |
+| `setoption name Lmr value 0\|1` | Late-move reductions (default 1) with `LmrMoves` (3), `LmrMinDepth` (4) and `LmrDeepMoves` (6: moves ranked this late are reduced by two plies). |
+| `setoption name NullMove value 0\|1`, `Futility` | Null-move pruning and futility pruning, with their parameters (`NullR`, `NullMinEmpties`, `FutilityMargin`, `FutilityDepth`). Both default to 0: neither helped in tests. |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
 The engine replies `info depth .. score cp .. nodes .. time .. nps .. pv ..` after each
