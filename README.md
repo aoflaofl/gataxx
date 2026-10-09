@@ -30,6 +30,9 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `stop` | Ends the search and prints `bestmove`. |
 | `quit` | Exits. |
 | `setoption name Hash value <MB>` | Transposition table size in MB (default 16, `0` disables it). The table is cleared on `uainewgame`. Unknown options are ignored with an `info string`. |
+| `setoption name Tempo value <n>` | Bonus (in pieces) for the side to move in the static evaluation (default 2). |
+| `setoption name QuiesceMinCaptures value <n>` | Quiescence search extends moves converting at least this many pieces (default 3; `0` turns quiescence off). |
+| `setoption name QuiesceMaxPly value <n>` | Most extra plies quiescence may search (default 4, max 16). |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 

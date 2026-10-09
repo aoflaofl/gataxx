@@ -9,7 +9,6 @@ import java.util.List;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Perft;
 import spamalot.gataxx.board.Position;
-import spamalot.gataxx.eval.Evaluator;
 import spamalot.gataxx.eval.MaterialEvaluator;
 import spamalot.gataxx.search.SearchLimits;
 import spamalot.gataxx.search.SearchResult;
@@ -26,17 +25,18 @@ public final class UaiEngine {
 
     public static final int DEFAULT_HASH_MB = 16;
     public static final int MAX_HASH_MB = 1024;
-    public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 0;
-    public static final int DEFAULT_QUIESCE_MAX_PLY = 6;
+    public static final int DEFAULT_TEMPO = 2;
+    public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
+    public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
     private final BufferedReader in;
     private final PrintWriter out;
     private final Object outLock = new Object();
-    private final Evaluator evaluator = new MaterialEvaluator();
 
     // Touched only by the command-reading thread.
     private Position position = Position.startPos();
     private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
+    private int tempo = DEFAULT_TEMPO;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -86,6 +86,7 @@ public final class UaiEngine {
                     send("id name " + NAME + " " + spamalot.gataxx.Main.version());
                     send("id author " + AUTHOR);
                     send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
+                    send("option name Tempo type spin default " + DEFAULT_TEMPO + " min 0 max 10");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
@@ -144,6 +145,8 @@ public final class UaiEngine {
             int mb = spinValue(name, value, 0, MAX_HASH_MB);
             tt = null; // free the old table before allocating the new one
             tt = mb == 0 ? null : new TranspositionTable(mb);
+        } else if (name.equalsIgnoreCase("Tempo")) {
+            tempo = spinValue(name, value, 0, 10);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
@@ -202,7 +205,7 @@ public final class UaiEngine {
     private void go(String[] tokens) {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
-        Searcher s = new Searcher(evaluator, tt);
+        Searcher s = new Searcher(new MaterialEvaluator(tempo), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
