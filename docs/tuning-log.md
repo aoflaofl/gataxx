@@ -248,8 +248,42 @@ Tempo scan (units of 1/16 piece; default 32; Elo vs default, nodes, 400 games +/
 and +19, 48: +28, 56: +7, 64: -49, 72: -45; fresh seed, 800 games (+/- 24): 44: +16, 48: +10. A plateau from about 32 to 56
 with at most a slight edge at 40-48, never significant; tempo stays at 32.
 
+## A stronger outside engine: Funes
+
+[Funes](https://github.com/Tempate/Funes) (C++, GPL-3.0, last commit 2021-01-11, 2671 lines), built at commit `dd319f1` with
+`mkdir bin && cd bin && cmake -DCMAKE_BUILD_TYPE=Release .. && make` (-O3 -flto -march=native). Before building I read its
+CMake file and `main.cpp`, scanned the source for network/process/file-writing calls (only a read of an openings file in
+a tuner that is compiled out), and read its UAI command and `go` parsing. I did not read its search or evaluation code:
+it is GPL-3.0 and this project is MIT, so nothing may be copied, and the comparison below is from the outside.
+
+Behaviour: speaks UAI; uses exactly the `movetime` given (51/101/201 ms for 50/100/200); `go depth N` is never
+answered; its search never returns for some positions (reproduced: after `b6` then `g7e5` from the start position),
+which `Match` would score as a timeout loss for Funes. It did not happen in any of the 440 games played.
+
+| Match (gataxx 1.1.0 vs Funes, 100 ms/move, 6-ply random openings, one thread each) | Result |
+|---|---|
+| 40 games (smoke test) | 10-30 |
+| 400 games, all ended normally (0 timeouts, median 92 plies) | **63-337 (15.8%), -291 +/- 47 Elo** |
+
+Funes is the strongest outside engine found so far, and it beats gataxx clearly (gataxx beats TikTaxx by +160).
+
+Search depth reached in 100 ms (last completed iteration, from each engine's `info` lines; nodes in thousands):
+
+| Position | Funes depth / nodes | gataxx depth / nodes |
+|---|---|---|
+| start | 15 / 433 | 7 / 436 |
+| ply 16 | 13 / 340 | 5 / 425 |
+| ply 26 | 11 / 248 | 5 / 365 |
+| ply 40 | 12 / 266 | 4 / 933 |
+
+Node rates are similar (5-8M/s Funes, 5-10M/s gataxx), so the gap is not raw speed or search size but how fast the tree
+grows with depth: Funes needs about 2x the nodes per extra ply, gataxx 6-10x. That points at selective search
+(pruning and reductions) rather than evaluation as the main difference. Funes' own `patches/*.txt` notes (public
+results of its author's tests) report large gains for border/corner bonuses, a second-player bonus and an endgame
+reduction, which is consistent with the edge and tempo findings here.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
-- Funes (C++, GPL-3.0, last pushed 2021; its README does not mention UAI), other TikTaxx settings, TikTaxx with more than
-  400 ms/move or a time handicap.
+- A time-handicap ladder against Funes (how much extra time gataxx needs), and the effect of selective search
+  (null-move pruning, late-move reductions, futility pruning) on the depth reached.
