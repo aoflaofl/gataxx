@@ -88,6 +88,16 @@ The lead is stable from 25 to 400 ms (all four within each other's error), so it
 time control. The chain through the original engine (below) had suggested near parity; the four direct matches
 agree with each other, so the direct result is the better estimate.
 
+Re-measured after the cohesion, edge-weight and reach work (current defaults; same TikTaxx build and settings):
+
+| Time per move | Games | Score (gataxx first) | Elo vs TikTaxx (95%) | Earlier engine |
+|---|---|---|---|---|
+| 25 ms | 1000 | 711-0-289 | **+156 +/- 24** | +115 +/- 23 |
+| 100 ms | 800 | 590-0-210 | **+180 +/- 27** | +115 +/- 25 |
+
+The lead over TikTaxx grew by roughly 40-65 Elo (the differences are about 1-2 sigma each), consistent with
+the cohesion gain measured in self-play, so the improvements carry over to an outside engine.
+
 The last two imply roughly equal strength to TikTaxx, while the direct match says +115. The difference is
 within the combined error (about 1.7 sigma), but different time controls were used, so treat the direct
 match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
