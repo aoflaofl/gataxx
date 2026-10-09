@@ -45,7 +45,7 @@ class UaiEngineTest {
         assertEquals("option name EvalExposure type spin default 0 min -64 max 64", out.get(6));
         assertEquals("option name EvalReach type spin default 0 min -64 max 64", out.get(7));
         assertEquals("option name EvalTerritory type spin default 0 min -64 max 64", out.get(8));
-        assertEquals("option name EvalEdge type spin default 0 min -64 max 64", out.get(9));
+        assertEquals("option name EvalEdge type spin default 8 min -64 max 64", out.get(9));
         assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(10));
         assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(11));
         assertEquals("uaiok", out.get(12));

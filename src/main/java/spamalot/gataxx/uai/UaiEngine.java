@@ -30,6 +30,8 @@ public final class UaiEngine {
     public static final int DEFAULT_TEMPO = 2 * FeatureEvaluator.SCALE;
     /** Weight of the safe-pieces feature, in score units (1/16 piece). Tuned by self-play. */
     public static final int DEFAULT_EVAL_SAFE = 4;
+    /** Weight of the edge-pieces feature, in score units (1/16 piece). Tuned by self-play. */
+    public static final int DEFAULT_EVAL_EDGE = 8;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
     public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
@@ -46,7 +48,7 @@ public final class UaiEngine {
     private int evalExposure;
     private int evalReach;
     private int evalTerritory;
-    private int evalEdge;
+    private int evalEdge = DEFAULT_EVAL_EDGE;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -102,7 +104,7 @@ public final class UaiEngine {
                     send("option name EvalExposure type spin default 0 min -64 max 64");
                     send("option name EvalReach type spin default 0 min -64 max 64");
                     send("option name EvalTerritory type spin default 0 min -64 max 64");
-                    send("option name EvalEdge type spin default 0 min -64 max 64");
+                    send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
