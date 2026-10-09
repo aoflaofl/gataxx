@@ -266,19 +266,10 @@ public final class Searcher {
 
         int[] moves = moveBuf[ply];
         int[] scores = scoreBuf[ply];
-        int n = pos.generateMoves(moves);
-        int k = 0;
-        for (int i = 0; i < n; i++) {
+        int k = pos.generateCaptureMoves(moves, qMinCaptures);
+        for (int i = 0; i < k; i++) {
             int m = moves[i];
-            if (m == Move.PASS) {
-                continue;
-            }
-            int captures = pos.captureCount(m);
-            if (captures >= qMinCaptures) {
-                moves[k] = m;
-                scores[k] = captures * 2 + (Move.isClone(m) ? 1 : 0);
-                k++;
-            }
+            scores[i] = pos.captureCount(m) * 2 + (Move.isClone(m) ? 1 : 0);
         }
         for (int i = 0; i < k; i++) {
             int bi = i;

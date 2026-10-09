@@ -315,6 +315,28 @@ class UaiEngineTest {
     }
 
     @Test
+    void benchIsDeterministicAndCoversAllPositions() {
+        List<String> a = run("bench 4\n");
+        List<String> b = run("bench 4\n");
+        assertEquals(1, a.size(), a.toString());
+        String[] ta = a.get(0).split(" ");
+        String[] tb = b.get(0).split(" ");
+        assertEquals("bench", ta[0]);
+        assertEquals("16", ta[Arrays.asList(ta).indexOf("positions") + 1]);
+        assertEquals(ta[Arrays.asList(ta).indexOf("nodes") + 1], tb[Arrays.asList(tb).indexOf("nodes") + 1]);
+        assertEquals(ta[Arrays.asList(ta).indexOf("scoresum") + 1], tb[Arrays.asList(tb).indexOf("scoresum") + 1]);
+    }
+
+    @Test
+    void benchPositionsAreLegalAndLive() {
+        for (String fen : spamalot.gataxx.search.BenchPositions.FENS) {
+            Position p = Position.fromFen(fen);
+            assertFalse(p.isGameOver(), fen);
+            assertEquals(Position.X, p.sideToMove(), fen);
+        }
+    }
+
+    @Test
     void perftCommand() {
         List<String> out = run("position startpos\nperft 3\n");
         String last = out.get(out.size() - 1);

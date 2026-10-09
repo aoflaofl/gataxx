@@ -156,6 +156,43 @@ class PositionTest {
     }
 
     @Test
+    void captureMovesAreTheFilteredLegalMovesInTheSameOrder() {
+        java.util.Random rnd = new java.util.Random(55);
+        int[] all = new int[Position.MAX_MOVES];
+        int[] caps = new int[Position.MAX_MOVES];
+        int checked = 0;
+        for (int game = 0; game < 150; game++) {
+            Position p = game % 3 == 0 ? Position.fromFen("x5o/7/2-1-2/3-3/2-1-2/7/o5x x 0 1") : Position.startPos();
+            for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
+                int n = p.generateMoves(all);
+                for (int min = 1; min <= 5; min++) {
+                    int expected = 0;
+                    int[] want = new int[Position.MAX_MOVES];
+                    for (int i = 0; i < n; i++) {
+                        if (all[i] != Move.PASS && p.captureCount(all[i]) >= min) {
+                            want[expected++] = all[i];
+                        }
+                    }
+                    int got = p.generateCaptureMoves(caps, min);
+                    assertEquals(expected, got, "min " + min + "\n" + p);
+                    for (int i = 0; i < got; i++) {
+                        assertEquals(want[i], caps[i], "index " + i + " min " + min + "\n" + p);
+                    }
+                    checked++;
+                }
+                p = p.makeMove(all[rnd.nextInt(n)]);
+            }
+        }
+        assertTrue(checked > 5000);
+    }
+
+    @Test
+    void captureMovesOfFinishedGameAreEmpty() {
+        Position over = Position.fromFen("xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxoo o 0 1");
+        assertEquals(0, over.generateCaptureMoves(new int[Position.MAX_MOVES], 1));
+    }
+
+    @Test
     void isLegal() {
         Position p = Position.startPos();
         assertTrue(p.isLegal(Move.parse("b6")));

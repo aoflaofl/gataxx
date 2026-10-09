@@ -21,6 +21,9 @@ public final class Bitboards {
     /** For each square, the squares at Chebyshev distance exactly 2 (the jump targets). */
     private static final long[] RING2 = new long[SQUARES];
 
+    /** For each square, the squares at Chebyshev distance exactly 1 (not the square itself). */
+    private static final long[] NEIGHBOURS = new long[SQUARES];
+
     static {
         for (int sq = 0; sq < SQUARES; sq++) {
             int f = sq % SIZE;
@@ -39,10 +42,27 @@ public final class Bitboards {
                 }
             }
             RING2[sq] = ring;
+
+            long near = 0;
+            for (int df = -1; df <= 1; df++) {
+                for (int dr = -1; dr <= 1; dr++) {
+                    int nf = f + df;
+                    int nr = r + dr;
+                    if ((df != 0 || dr != 0) && nf >= 0 && nf < SIZE && nr >= 0 && nr < SIZE) {
+                        near |= 1L << (nr * SIZE + nf);
+                    }
+                }
+            }
+            NEIGHBOURS[sq] = near;
         }
     }
 
     private Bitboards() {}
+
+    /** The set of squares adjacent to {@code sq}, diagonals included. */
+    public static long neighbours(int sq) {
+        return NEIGHBOURS[sq];
+    }
 
     /** The set of squares at Chebyshev distance exactly 2 from {@code sq}. */
     public static long ring2(int sq) {

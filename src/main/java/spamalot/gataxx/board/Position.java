@@ -212,6 +212,39 @@ public final class Position {
         return n;
     }
 
+    /**
+     * Fills {@code out} with only the moves that would convert at least {@code minCaptures} enemy
+     * pieces, in the same relative order {@link #generateMoves} would list them (clones first, then
+     * jumps), and returns the count. Never includes a pass. Because the number of conversions depends
+     * only on the destination square, this checks each reachable empty square once instead of
+     * generating every move and counting. Returns 0 if the game is over.
+     */
+    public int generateCaptureMoves(int[] out, int minCaptures) {
+        if (isGameOver()) {
+            return 0;
+        }
+        long mine = pieces(sideToMove);
+        long theirs = pieces(1 - sideToMove);
+        long noisy = 0;
+        for (long t = Bitboards.expand2(mine) & empty(); t != 0; t &= t - 1) {
+            int sq = Long.numberOfTrailingZeros(t);
+            if (Long.bitCount(Bitboards.neighbours(sq) & theirs) >= minCaptures) {
+                noisy |= 1L << sq;
+            }
+        }
+        int n = 0;
+        for (long t = noisy & Bitboards.expand1(mine); t != 0; t &= t - 1) {
+            out[n++] = Move.clone(Long.numberOfTrailingZeros(t));
+        }
+        for (long p = mine; p != 0; p &= p - 1) {
+            int from = Long.numberOfTrailingZeros(p);
+            for (long t = Bitboards.ring2(from) & noisy; t != 0; t &= t - 1) {
+                out[n++] = Move.jump(from, Long.numberOfTrailingZeros(t));
+            }
+        }
+        return n;
+    }
+
     /** Number of enemy pieces {@code move} would convert (0 for a pass). */
     public int captureCount(int move) {
         if (move == Move.PASS) {

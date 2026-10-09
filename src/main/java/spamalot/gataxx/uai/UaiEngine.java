@@ -11,6 +11,7 @@ import spamalot.gataxx.board.Perft;
 import spamalot.gataxx.board.Position;
 import spamalot.gataxx.eval.FeatureEvaluator;
 import spamalot.gataxx.eval.FeatureEvaluator.Weights;
+import spamalot.gataxx.search.BenchPositions;
 import spamalot.gataxx.search.SearchLimits;
 import spamalot.gataxx.search.SearchResult;
 import spamalot.gataxx.search.Searcher;
@@ -153,6 +154,10 @@ public final class UaiEngine {
                     stopAndAwaitSearch();
                     send(position.toString());
                 }
+                case "bench" -> {
+                    stopAndAwaitSearch();
+                    bench(tokens);
+                }
                 case "perft" -> {
                     stopAndAwaitSearch();
                     perft(tokens);
@@ -259,11 +264,7 @@ public final class UaiEngine {
     private void go(String[] tokens) {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
-        Searcher s = new Searcher(new FeatureEvaluator(
-                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
-                        evalReach, evalTerritory, evalEdge, tempo, evalFade,
-                        evalCorner, evalRing1, evalCohesion, evalThreat)), tt);
-        s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
+        Searcher s = newSearcher();
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
         searchThread = new Thread(() -> {
@@ -283,6 +284,35 @@ public final class UaiEngine {
         }, "search");
         searchThread.setDaemon(true);
         searchThread.start();
+    }
+
+    /** A searcher configured with the current options and sharing the current table. */
+    private Searcher newSearcher() {
+        Searcher s = new Searcher(new FeatureEvaluator(
+                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
+                        evalReach, evalTerritory, evalEdge, tempo, evalFade,
+                        evalCorner, evalRing1, evalCohesion, evalThreat)), tt);
+        s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
+        return s;
+    }
+
+    /** {@code bench [depth]}: fixed-depth searches of the bench positions, for comparing search versions. */
+    private void bench(String[] tokens) {
+        int depth = tokens.length > 1 ? Integer.parseInt(tokens[1]) : 6;
+        long nodes = 0;
+        long scoreSum = 0;
+        long start = System.nanoTime();
+        for (String fen : BenchPositions.FENS) {
+            if (tt != null) {
+                tt.clear();
+            }
+            SearchResult r = newSearcher().search(Position.fromFen(fen), SearchLimits.depth(depth), null);
+            nodes += r.nodes();
+            scoreSum += r.score();
+        }
+        long ms = Math.max(1, (System.nanoTime() - start) / 1_000_000L);
+        send("bench depth " + depth + " positions " + BenchPositions.FENS.length + " nodes " + nodes
+                + " time " + ms + " nps " + nodes * 1000 / ms + " scoresum " + scoreSum);
     }
 
     private void sendInfo(SearchResult r) {
