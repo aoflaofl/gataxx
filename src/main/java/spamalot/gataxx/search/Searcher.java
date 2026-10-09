@@ -44,6 +44,9 @@ public final class Searcher {
     private int qMinCaptures;
     private int qMaxPly;
     private boolean usePvs;
+    private boolean useNullMove;
+    private int nullReduction = 2;
+    private int nullMinEmpties = 12;
 
     /** A searcher without a transposition table. */
     public Searcher(Evaluator evaluator) {
@@ -83,6 +86,25 @@ public final class Searcher {
      */
     public void setPvs(boolean pvs) {
         this.usePvs = pvs;
+    }
+
+    /**
+     * Null-move pruning: at a zero-window node whose static score already reaches beta, let the opponent move twice
+     * (pass our turn) and search that to a reduced depth; if even then the score reaches beta, the node is pruned.
+     * It is a selective, non-exact technique that assumes passing is never better than moving ("no zugzwang").
+     * In Ataxx the mover can almost always clone to gain material, so that holds until the late endgame, where jumps
+     * can open holes: the pruning is therefore skipped when fewer than {@code minEmpties} squares are empty. Only
+     * zero-window nodes are pruned, so it needs {@link #setPvs PVS} to have any effect.
+     *
+     * @param reduction extra depth removed from the pass search (the usual "R"), at least 1
+     */
+    public void setNullMove(boolean enabled, int reduction, int minEmpties) {
+        if (reduction < 1 || minEmpties < 0) {
+            throw new IllegalArgumentException("null-move parameters out of range");
+        }
+        this.useNullMove = enabled;
+        this.nullReduction = reduction;
+        this.nullMinEmpties = minEmpties;
     }
 
     /**
@@ -132,7 +154,7 @@ public final class Searcher {
             if (shouldAbort()) {
                 break;
             }
-            int score = negamax(root, depth, -INF, INF, 0, true);
+            int score = negamax(root, depth, -INF, INF, 0, true, true);
             if (aborted) {
                 break;
             }
@@ -156,7 +178,7 @@ public final class Searcher {
                 || (maxNodes > 0 && nodes >= maxNodes);
     }
 
-    private int negamax(Position pos, int depth, int alpha, int beta, int ply, boolean onPv) {
+    private int negamax(Position pos, int depth, int alpha, int beta, int ply, boolean onPv, boolean nullAllowed) {
         if (depth == 0 && qMinCaptures > 0) {
             return quiesce(pos, alpha, beta, ply, 0);
         }
@@ -204,6 +226,20 @@ public final class Searcher {
             }
         }
 
+        if (useNullMove && nullAllowed && !onPv && beta - alpha == 1 && depth > nullReduction
+                && beta < WIN - MAX_PLY && beta > -(WIN - MAX_PLY)
+                && !pos.isGameOver() && pos.hasMove(pos.sideToMove())
+                && Long.bitCount(pos.empty()) >= nullMinEmpties
+                && evaluator.evaluate(pos) >= beta) {
+            int s = -negamax(pos.makeMove(Move.PASS), depth - 1 - nullReduction, -beta, -beta + 1, ply + 1, false, false);
+            if (aborted) {
+                return 0;
+            }
+            if (s >= beta) {
+                return beta;
+            }
+        }
+
         int[] moves = moveBuf[ply];
         int n = pos.generateMoves(moves);
         if (n == 0) {
@@ -229,12 +265,12 @@ public final class Searcher {
             Position child = pos.makeMove(move);
             int score;
             if (usePvs && i > 0) {
-                score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false);
+                score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
                 if (!aborted && score > alpha && score < beta) {
-                    score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, false);
+                    score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, false, true);
                 }
             } else {
-                score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, onPv && move == hint);
+                score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, onPv && move == hint, true);
             }
             if (aborted) {
                 return 0;

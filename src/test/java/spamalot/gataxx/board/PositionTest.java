@@ -193,6 +193,20 @@ class PositionTest {
     }
 
     @Test
+    void nullMoveIsAPassThatOnlyFlipsTheSideAndCountsAHalfMove() {
+        Position p = Position.fromFen("x5o/1x5/7/7/7/7/o5x x 3 5");
+        Position q = p.makeMove(Move.PASS);
+        assertEquals(p.pieces(Position.X), q.pieces(Position.X));
+        assertEquals(p.pieces(Position.O), q.pieces(Position.O));
+        assertEquals(Position.O, q.sideToMove());
+        assertEquals(p.halfmoveClock() + 1, q.halfmoveClock());
+        assertEquals(p.fullmoveNumber(), q.fullmoveNumber());
+        assertEquals(Position.fromFen(q.toFen()).hash(), q.hash());
+        assertTrue(p.hash() != q.hash());
+        assertEquals(p.hash(), q.makeMove(Move.PASS).hash(), "two passes restore the hash");
+    }
+
+    @Test
     void isLegal() {
         Position p = Position.startPos();
         assertTrue(p.isLegal(Move.parse("b6")));

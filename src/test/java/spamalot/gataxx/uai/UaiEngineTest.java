@@ -52,10 +52,13 @@ class UaiEngineTest {
         assertEquals("option name EvalThreat type spin default 0 min -64 max 64", out.get(13));
         assertEquals("option name EvalFade type spin default 0 min 0 max 49", out.get(14));
         assertEquals("option name Pvs type spin default 1 min 0 max 1", out.get(15));
-        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(16));
-        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(17));
-        assertEquals("uaiok", out.get(18));
-        assertEquals(19, out.size());
+        assertEquals("option name NullMove type spin default 0 min 0 max 1", out.get(16));
+        assertEquals("option name NullR type spin default 2 min 1 max 6", out.get(17));
+        assertEquals("option name NullMinEmpties type spin default 12 min 0 max 49", out.get(18));
+        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(19));
+        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(20));
+        assertEquals("uaiok", out.get(21));
+        assertEquals(22, out.size());
     }
 
     private static int lastHashfull(List<String> out) {

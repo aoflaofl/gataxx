@@ -282,6 +282,26 @@ grows with depth: Funes needs about 2x the nodes per extra ply, gataxx 6-10x. Th
 results of its author's tests) report large gains for border/corner bonuses, a second-player bonus and an endgame
 reduction, which is consistent with the edge and tempo findings here.
 
+## Selective search: null-move pruning
+
+Added as options `NullMove` (default 0), `NullR` (reduction, default 2) and `NullMinEmpties` (default 12). At a
+zero-window node whose static score reaches beta (not after a pass, not in a mate-score window, mover not stuck,
+at least `NullMinEmpties` empty squares) the side to move passes and the opponent's reply is searched to depth
+`d - 1 - R`; a score >= beta prunes the node. It needs PVS to have any effect. Zugzwang should be rare in Ataxx because
+the mover can nearly always clone for a gain, so the technique is plausible, but it is not exact (the exactness tests
+do not apply; `NullMoveTest` checks the contract instead).
+
+| Test | Result |
+|---|---|
+| bench depth 7, nodes (off 139.1M, scoresum 740) for R = 1 / 2 / 3 / 4 / 5 | 170.7M / 116.4M / **103.2M (-26%)** / 130.6M / 128.4M; scoresum 740 in all |
+| `NullMinEmpties` 0 / 6 / 12 / 20 / 30 at R=3 | 103.2M / 103.2M / 103.2M / 109.0M / 113.6M nodes |
+| 80 random positions, material eval, R=3: same score as plain | depth 5: 71 of 75 (95%), nodes -77%; depth 6: 46 of 69 (67%), same best move 52 of 69, nodes -41% |
+| Matches vs the current engine, 100k nodes/move, 400 games (+/- 34): R=2 / R=3 / R=3 + 20-empties guard / R=4 | -12 / +10 / 0 / -12 |
+
+Null-move pruning saves up to a quarter of the nodes but shows no measurable gain in play (a quarter of the nodes is worth
+roughly +15 Elo, below what 400 games resolve), so it stays an option, off by default. It is clearly not the explanation
+for the gap to Funes.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

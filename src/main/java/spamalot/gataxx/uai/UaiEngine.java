@@ -59,6 +59,9 @@ public final class UaiEngine {
     private int evalRing1;
     private int evalCohesion = DEFAULT_EVAL_COHESION;
     private int pvs = 1;
+    private int nullMove;
+    private int nullR = 2;
+    private int nullMinEmpties = 12;
     private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
@@ -122,6 +125,9 @@ public final class UaiEngine {
                     send("option name EvalThreat type spin default 0 min -64 max 64");
                     send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name Pvs type spin default 1 min 0 max 1");
+                    send("option name NullMove type spin default 0 min 0 max 1");
+                    send("option name NullR type spin default 2 min 1 max 6");
+                    send("option name NullMinEmpties type spin default 12 min 0 max 49");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
@@ -208,6 +214,12 @@ public final class UaiEngine {
             evalThreat = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("Pvs")) {
             pvs = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("NullMove")) {
+            nullMove = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("NullR")) {
+            nullR = spinValue(name, value, 1, 6);
+        } else if (name.equalsIgnoreCase("NullMinEmpties")) {
+            nullMinEmpties = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("EvalFade")) {
             evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
@@ -298,6 +310,7 @@ public final class UaiEngine {
                         evalCorner, evalRing1, evalCohesion, evalThreat)), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         s.setPvs(pvs == 1);
+        s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
         return s;
     }
 
