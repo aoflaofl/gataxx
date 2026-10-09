@@ -13,16 +13,17 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.0.0.jar
+java -jar gataxx-1.1.0.jar
 ```
 
 ## Strength
 
 Measured by self-play with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every
-experiment): version 1.0.0 beats the open-source C++ engine
-[TikTaxx](https://github.com/kz04px/tiktaxx) by about 73% of games (+156 Elo at 25 ms per move, +180 Elo at
-100 ms per move; one thread each, default settings, random 6-ply openings). That is a comparison against one
-engine, not a rating.
+experiment): version 1.0.0 beat the open-source C++ engine
+[TikTaxx](https://github.com/kz04px/tiktaxx) in about 73% of games (+156 Elo at 25 ms per move, +180 Elo at
+100 ms per move; one thread each, default settings, random 6-ply openings). Version 1.1.0 searches about twice as
+fast with identical results and beats 1.0.0 by +43 Elo at 50 ms per move; it has not been re-measured against
+TikTaxx. These are comparisons against one engine, not ratings.
 
 ## Build and run
 
@@ -55,6 +56,8 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8), `EvalReach` (pieces no enemy can threaten next move, default 4), `EvalTerritory`, `EvalMobility` and `EvalExposure` (default 0) are also available. `EvalCohesion` (default -3: penalises adjacent own pieces, favouring spread-out groups) and `EvalThreat` (default 0) are in 1/64 piece, the others in 1/16. `EvalFade` (default 0, off) scales the positional weights down as the board fills; tested, no gain. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
+| `bench [depth]` | Searches 16 fixed positions to a fixed depth (default 6) and prints nodes, time, nps and a score checksum, for comparing search changes exactly. |
+| `setoption name Pvs value 0\|1` | Principal variation search (default 1). |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
 The engine replies `info depth .. score cp .. nodes .. time .. nps .. pv ..` after each
