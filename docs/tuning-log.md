@@ -203,6 +203,36 @@ is therefore not a useful yardstick; it only confirms that gataxx plays legal, s
 independent implementation. A better second yardstick would be a stronger engine, or the same engine at a time
 handicap (for example TikTaxx given several times our time per move).
 
+## Fitting features to game outcomes (`tools.Fit`)
+
+`Fit` replays games saved by `Match --out`, samples positions (optionally only "quiet" ones, where the side to move
+has no move converting 3 or more pieces), and fits a logistic regression of the eventual result on raw feature
+differences (`FeatureEvaluator.rawFeatures`), reporting coefficients, z-scores and held-out log-loss (split by game).
+Data: 6000 self-play games at 20000 nodes/move (3000 distinct games; 19,649 quiet / 200,899 total positions).
+
+Pitfalls found: (1) two identical deterministic engines play the same game from both colours, so identical games
+must be deduplicated or the copies straddle the train/held-out split; (2) material, edge, corner, cohesion and
+exposure are exactly linearly dependent (8*material - 3*edge - 2*corner = cohesion + exposure, as the enemy-contact
+terms cancel in a difference), so the full feature set cannot be fitted without dropping one (exposure).
+
+| Result | Value |
+|---|---|
+| Held-out log-loss: no information / material only / current five features / fitted five | 0.693 / 0.643 / 0.610 (one-parameter scaling) / 0.592 (all positions) |
+| Fitted weights for the five current features (all positions; 1/16 piece, cohesion 1/64) | safe 17, reach 4.3, edge 8.3, cohesion -4.8, tempo 3.6 pieces |
+| Match-tuned weights | safe 4, reach 4, edge 8, cohesion -3, tempo 2 pieces |
+| Adding any one candidate (mobility, territory, corner, ring1, threat, dense, bites3, bitesSq) to the five | held-out loss improves by at most 0.0012 (the five themselves bring 0.05): none carries real extra signal |
+| Removing reach, or cohesion, from the model | held-out loss does not worsen, yet in matches reach off costs -76 Elo and cohesion adds +64: these features help move choice, not outcome prediction |
+| Playing the regression's weights: safe 12 / safe 17 / safe 12 + tempo 48 + cohesion -5 | -47 / -94 / -70 Elo (+/- 34, 400 games, nodes) |
+
+Edge, reach and cohesion came out within about 1 sigma of the independently match-tuned values, which supports both
+methods. But outcome fits over-weight tactical features (safe pieces) that the search already sees, so match tuning
+remains the arbiter and the fit is a filter for candidates, not a source of playing weights. No new feature
+earned a place in the evaluation.
+
+Tempo scan (units of 1/16 piece; default 32; Elo vs default, nodes, 400 games +/- 34 unless noted): 24: -38, 40: +9
+and +19, 48: +28, 56: +7, 64: -49, 72: -45; fresh seed, 800 games (+/- 24): 44: +16, 48: +10. A plateau from about 32 to 56
+with at most a slight edge at 40-48, never significant; tempo stays at 32.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

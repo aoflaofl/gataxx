@@ -1,6 +1,7 @@
 package spamalot.gataxx.eval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 import org.junit.jupiter.api.Test;
@@ -332,6 +333,72 @@ class FeatureEvaluatorTest {
         // Unfaded: base 16*43+32 = 720, plus safe 4*43 + reach 4*43 (nothing is threatened with no empty
         // squares) + edge 8*24 (x holds all 24 edge squares, o none) = 536.
         assertEquals(720 + 536, eval(full, noFade));
+    }
+
+    @Test
+    void rawFeaturesReproduceTheEvaluation() {
+        // Weights are multiples of FINE so the per-term integer division in evaluate() is exact.
+        int[] w = {16, 4, 2, -1, 4, 3, 8, 5, -2, -3 * FeatureEvaluator.FINE, -2 * FeatureEvaluator.FINE};
+        Weights weights = new Weights(w[0], w[1], w[2], w[3], w[4], w[5], w[6], 32, 0, w[7], w[8],
+                -3 * FeatureEvaluator.FINE, -2 * FeatureEvaluator.FINE);
+        FeatureEvaluator f = new FeatureEvaluator(weights);
+        Random rnd = new Random(3);
+        int[] buf = new int[Position.MAX_MOVES];
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        Position p = Position.startPos();
+        for (int i = 0; i < 400; i++) {
+            if (p.isGameOver()) {
+                p = Position.startPos();
+            }
+            FeatureEvaluator.rawFeatures(p, raw);
+            // order: material, safe, mobility, exposure, reach, territory, edge, corner, ring1, cohesion, threat
+            int expected = 32 + 16 * raw[0] + 4 * raw[1] + 2 * raw[2] - 1 * raw[3] + 4 * raw[4] + 3 * raw[5]
+                    + 8 * raw[6] + 5 * raw[7] - 2 * raw[8] - 3 * raw[9] - 2 * raw[10];
+            assertEquals(expected, f.evaluate(p), p.toString());
+            int n = p.generateMoves(buf);
+            p = p.makeMove(buf[rnd.nextInt(n)]);
+        }
+    }
+
+    @Test
+    void rawFeaturesAreAntisymmetricInTheSideToMove() {
+        Random rnd = new Random(4);
+        int[] buf = new int[Position.MAX_MOVES];
+        int[] a = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        int[] b = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        Position p = Position.startPos();
+        for (int i = 0; i < 80 && !p.isGameOver(); i++) {
+            String[] t = p.toFen().split(" ");
+            Position flipped = Position.fromFen(t[0] + " " + (t[1].equals("x") ? "o" : "x") + " 0 1");
+            FeatureEvaluator.rawFeatures(p, a);
+            FeatureEvaluator.rawFeatures(flipped, b);
+            for (int k = 0; k < a.length; k++) {
+                assertEquals(-a[k], b[k], FeatureEvaluator.FEATURE_NAMES[k] + "\n" + p);
+            }
+            int n = p.generateMoves(buf);
+            p = p.makeMove(buf[rnd.nextInt(n)]);
+        }
+    }
+
+    @Test
+    void denseAndBitesMatchNaiveCountsOnHandBuiltPositions() {
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        // x block 3x3 in the middle: the centre piece has 8 own neighbours, the 4 edge-middles have 5, the
+        // corners of the block have 3. So dense (>= 4 own neighbours) = 5 for x, 0 for the lone o.
+        FeatureEvaluator.rawFeatures(Position.fromFen("6o/7/7/2xxx2/2xxx2/2xxx2/7 x 0 1"), raw);
+        assertEquals(5, raw[11]);
+        // o on g7 can land on empty squares beside the x block? o reaches only within 2 of g7: none beside x.
+        // x reaches squares within 2 of the block, which covers every empty neighbour of o: no square beside o
+        // has 3 o neighbours (o is alone), so bites against o are 0; o cannot reach the block: 0.
+        assertEquals(0, raw[12]);
+        // o on d4, e4 and c3 surround the empty d3, and x on b1 is within two squares of d3: x could land there
+        // and convert all three. The feature is (bites against the mover) - (bites against the other side), so
+        // from x's move it is 0 - 1 = -1 and from o's move it is 1 - 0 = +1.
+        FeatureEvaluator.rawFeatures(Position.fromFen("7/7/7/3oo2/2o4/7/1x5 x 0 1"), raw);
+        assertEquals(-1, raw[12]);
+        assertTrue(raw[13] < 0, "same sign convention as bites3: the mover has the bite, so the difference is negative: " + raw[13]);
+        FeatureEvaluator.rawFeatures(Position.fromFen("7/7/7/3oo2/2o4/7/1x5 o 0 1"), raw);
+        assertEquals(1, raw[12]);
     }
 
     @Test

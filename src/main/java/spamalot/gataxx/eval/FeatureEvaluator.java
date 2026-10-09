@@ -94,10 +94,76 @@ public final class FeatureEvaluator implements Evaluator {
         }
     }
 
+    /**
+     * Names of the raw features returned by {@link #rawFeatures}, in order. Each is the value for the side to
+     * move minus the value for the other side, before any weight is applied (cohesion and threat before
+     * dividing by {@link #FINE}).
+     */
+    public static final String[] FEATURE_NAMES = {
+        "material", "safe", "mobility", "exposure", "reach", "territory", "edge", "corner", "ring1",
+        "cohesion", "threat", "dense", "bites3", "bitesSq"
+    };
+
     private final Weights w;
 
     public FeatureEvaluator(Weights weights) {
         this.w = weights;
+    }
+
+    /**
+     * Fills {@code out} (length {@code FEATURE_NAMES.length}) with the unweighted feature differences for the
+     * side to move. Slower than {@link #evaluate}: meant for fitting weights offline, and it includes
+     * candidate features ({@code dense}: pieces with four or more own neighbours; {@code bites3}: empty squares
+     * the other side can land on that would convert three or more of a side's pieces; {@code bitesSq}: the sum
+     * of squared conversions over all squares the other side can land on) that the evaluator does not use.
+     */
+    public static void rawFeatures(Position pos, int[] out) {
+        int me = pos.sideToMove();
+        long mine = pos.pieces(me);
+        long theirs = pos.pieces(1 - me);
+        long empty = pos.empty();
+        long myReach = Bitboards.expand2(mine) & empty;
+        long theirReach = Bitboards.expand2(theirs) & empty;
+        long exposedZone = Bitboards.expand1(empty);
+        out[0] = Long.bitCount(mine) - Long.bitCount(theirs);
+        out[1] = Long.bitCount(mine & ~exposedZone) - Long.bitCount(theirs & ~exposedZone);
+        out[2] = Long.bitCount(Bitboards.expand1(mine) & empty) - Long.bitCount(Bitboards.expand1(theirs) & empty);
+        out[3] = Bitboards.adjacentPairs(mine, empty) - Bitboards.adjacentPairs(theirs, empty);
+        out[4] = Long.bitCount(mine) - Long.bitCount(mine & Bitboards.expand1(theirReach))
+                - Long.bitCount(theirs) + Long.bitCount(theirs & Bitboards.expand1(myReach));
+        out[5] = Long.bitCount(myReach & ~theirReach) - Long.bitCount(theirReach & ~myReach);
+        out[6] = Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE);
+        out[7] = Long.bitCount(mine & CORNERS) - Long.bitCount(theirs & CORNERS);
+        out[8] = Long.bitCount(mine & RING1) - Long.bitCount(theirs & RING1);
+        out[9] = Bitboards.adjacentPairs(mine, mine) - Bitboards.adjacentPairs(theirs, theirs);
+        out[10] = Bitboards.adjacentPairs(mine, theirReach) - Bitboards.adjacentPairs(theirs, myReach);
+        out[11] = dense(mine) - dense(theirs);
+        int bitesMine = 0;
+        int bitesTheirs = 0;
+        int sqMine = 0;
+        int sqTheirs = 0;
+        for (long t = theirReach; t != 0; t &= t - 1) {
+            int k = Long.bitCount(Bitboards.neighbours(Long.numberOfTrailingZeros(t)) & mine);
+            sqMine += k * k;
+            bitesMine += k >= 3 ? 1 : 0;
+        }
+        for (long t = myReach; t != 0; t &= t - 1) {
+            int k = Long.bitCount(Bitboards.neighbours(Long.numberOfTrailingZeros(t)) & theirs);
+            sqTheirs += k * k;
+            bitesTheirs += k >= 3 ? 1 : 0;
+        }
+        out[12] = bitesMine - bitesTheirs;
+        out[13] = sqMine - sqTheirs;
+    }
+
+    private static int dense(long pieces) {
+        int n = 0;
+        for (long p = pieces; p != 0; p &= p - 1) {
+            if (Long.bitCount(Bitboards.neighbours(Long.numberOfTrailingZeros(p)) & pieces) >= 4) {
+                n++;
+            }
+        }
+        return n;
     }
 
     @Override
