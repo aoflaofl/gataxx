@@ -39,6 +39,18 @@ once the static score credits the side to move with its free clone (tempo).
 | Wrong-sign runs (reach -4, edge -2, safe -8) | nodes | all strongly negative, as a sanity check |
 | Tempo 24 / 40 (default 32) | nodes, 1200 games | -34 +/- 20 / -11 +/- 20 |
 
+## Re-tuning around the edge baseline
+
+| Change (vs edge 8 + safe 4) | Test | Result |
+|---|---|---|
+| Safe 0 / 2 / 8 | nodes, 400 games | -78 / -56 / -17 (4 stays) |
+| Tempo 24 / 40 | nodes, 400 games | -17 / +17 (flat) |
+| Quiescence min captures 2 / 4 | nodes, 400 games | -5 / -85 (3 stays) |
+| Quiescence max ply 2 / 6 | nodes, 400 games | -24 / -92 (4 stays) |
+| Edge 6 / 10 | nodes, 400 games | -35 / +38; edge 10 then +20 +/- 20 over 1200 games (not adopted) |
+| Reach 4 | nodes, 400 games, then 1200 games fresh seed | +31, then +41 +/- 20 |
+| Reach 4 | timed, 1000 games | **+46 +/- 22** (adopted) |
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

@@ -32,6 +32,8 @@ public final class UaiEngine {
     public static final int DEFAULT_EVAL_SAFE = 4;
     /** Weight of the edge-pieces feature, in score units (1/16 piece). Tuned by self-play. */
     public static final int DEFAULT_EVAL_EDGE = 8;
+    /** Weight of the reach feature (pieces no enemy can threaten next move), in 1/16 piece. Tuned by self-play. */
+    public static final int DEFAULT_EVAL_REACH = 4;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
     public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
@@ -46,7 +48,7 @@ public final class UaiEngine {
     private int evalSafe = DEFAULT_EVAL_SAFE;
     private int evalMobility;
     private int evalExposure;
-    private int evalReach;
+    private int evalReach = DEFAULT_EVAL_REACH;
     private int evalTerritory;
     private int evalEdge = DEFAULT_EVAL_EDGE;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
@@ -102,7 +104,7 @@ public final class UaiEngine {
                     send("option name EvalSafe type spin default " + DEFAULT_EVAL_SAFE + " min -64 max 64");
                     send("option name EvalMobility type spin default 0 min -64 max 64");
                     send("option name EvalExposure type spin default 0 min -64 max 64");
-                    send("option name EvalReach type spin default 0 min -64 max 64");
+                    send("option name EvalReach type spin default " + DEFAULT_EVAL_REACH + " min -64 max 64");
                     send("option name EvalTerritory type spin default 0 min -64 max 64");
                     send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
