@@ -19,11 +19,12 @@ java -jar gataxx-1.1.0.jar
 ## Strength
 
 Measured by self-play with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every
-experiment): version 1.0.0 beat the open-source C++ engine
-[TikTaxx](https://github.com/kz04px/tiktaxx) in about 73% of games (+156 Elo at 25 ms per move, +180 Elo at
-100 ms per move; one thread each, default settings, random 6-ply openings). Version 1.1.0 searches about twice as
-fast with identical results and beats 1.0.0 by +43 Elo at 50 ms per move; it has not been re-measured against
-TikTaxx. These are comparisons against one engine, not ratings.
+experiment): version 1.1.0 beats the open-source C++ engine
+[TikTaxx](https://github.com/kz04px/tiktaxx) in about 72% of games (+160 Elo at 25 ms per move, +165 Elo at
+100 ms per move; one thread each, default settings, random 6-ply openings). Version 1.0.0 scored the same within
+error (+156 and +180); 1.1.0 searches about twice as fast and beats 1.0.0 by +43 Elo at 50 ms per move in
+self-play, but that speedup did not widen the lead over TikTaxx. These are comparisons against one engine, not
+ratings.
 
 ## Build and run
 

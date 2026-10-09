@@ -98,6 +98,21 @@ Re-measured after the cohesion, edge-weight and reach work (current defaults; sa
 The lead over TikTaxx grew by roughly 40-65 Elo (the differences are about 1-2 sigma each), consistent with
 the cohesion gain measured in self-play, so the improvements carry over to an outside engine.
 
+Re-measured with the faster search of 1.1.0 (PVS, direct quiescence move generation, edge-aware ordering; same
+TikTaxx build and settings, same seeds as the rows above):
+
+| Time per move | Games | Score (gataxx first) | Elo vs TikTaxx (95%) | 1.0.0 |
+|---|---|---|---|---|
+| 25 ms | 1000 | 715-0-285 | **+160 +/- 24** | +156 +/- 24 |
+| 100 ms | 800 | 576-2-222 | **+165 +/- 27** | +180 +/- 27 |
+
+The lead over TikTaxx did not change within error (+4 and -15), although 1.1.0 is about twice as fast and beats
+1.0.0 by +43 +/- 24 Elo in self-play. Possible reasons: the earlier 1.0.0 numbers or the self-play gain were partly
+luck (the combined difference is under two standard errors), or part of a self-play gain does not transfer to a
+different opponent (self-play can overstate improvements that exploit shared weaknesses). Treat the outside-engine
+numbers as the more trustworthy yardstick, and the speedup as real in nodes and time (`bench`) but modest in
+strength.
+
 The last two imply roughly equal strength to TikTaxx, while the direct match says +115. The difference is
 within the combined error (about 1.7 sigma), but different time controls were used, so treat the direct
 match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
@@ -192,4 +207,4 @@ handicap (for example TikTaxx given several times our time per move).
 
 - Strength gain per extra ply near depth 8.
 - Funes (C++, GPL-3.0, last pushed 2021; its README does not mention UAI), other TikTaxx settings, TikTaxx with more than
-  400 ms/move or a time handicap, and 1.1.0 against TikTaxx.
+  400 ms/move or a time handicap.
