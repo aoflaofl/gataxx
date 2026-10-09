@@ -74,6 +74,20 @@ colour convention this engine assumes.
 | TikTaxx vs the original Phase 4 engine (no table, material only), 300 games | 265-35, +352 +/- 61 |
 | gataxx vs the same original engine, 50 ms/move, 400 games | 346-54, +323 +/- 50 |
 
+Time-control sweep vs TikTaxx (same settings; ours Hash 128, 1 thread each, 6-ply random openings; TikTaxx rebuilt
+with CMake-built libataxx at the same pinned commits):
+
+| Time per move | Games | Score (gataxx first) | Elo vs TikTaxx (95%) |
+|---|---|---|---|
+| 25 ms | 1000 | 660-0-340 | +115 +/- 23 |
+| 100 ms | 800 | 527-1-272 | +115 +/- 25 |
+| 200 ms | 400 | 275-1-124 | +138 +/- 37 |
+| 400 ms | 300 | 192-0-108 | +100 +/- 41 |
+
+The lead is stable from 25 to 400 ms (all four within each other's error), so it does not come from a particular
+time control. The chain through the original engine (below) had suggested near parity; the four direct matches
+agree with each other, so the direct result is the better estimate.
+
 The last two imply roughly equal strength to TikTaxx, while the direct match says +115. The difference is
 within the combined error (about 1.7 sigma), but different time controls were used, so treat the direct
 match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
@@ -82,4 +96,4 @@ one opening set; it is not a rating.
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
-- Other time controls against TikTaxx (only 100 ms/move so far), and other outside engines.
+- Other outside engines (GoTaxx, Funes, ...), other TikTaxx settings, and TikTaxx with more than 400 ms/move.
