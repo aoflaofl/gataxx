@@ -113,6 +113,21 @@ different opponent (self-play can overstate improvements that exploit shared wea
 numbers as the more trustworthy yardstick, and the speedup as real in nodes and time (`bench`) but modest in
 strength.
 
+Time-handicap ladder (gataxx 1.1.0 always at 25 ms/move; TikTaxx given a multiple of that; 6-ply random openings,
+one thread each, Hash 128 for gataxx):
+
+| TikTaxx time | Ratio | Games | Score (gataxx first) | Elo (95%) |
+|---|---|---|---|---|
+| 25 ms | 1x | 1000 | 715-0-285 | +160 +/- 24 (row above) |
+| 50 ms | 2x | 400 | 251-0-149 | +91 +/- 35 |
+| 100 ms | 4x | 400 | 255-0-145 | +98 +/- 35 |
+| 200 ms | 8x | 300 | 146-0-154 | -9 +/- 39 |
+| 400 ms | 16x | 200 | 78-0-122 | -78 +/- 49 |
+
+A least-squares line through the five points falls about 58 Elo per doubling of TikTaxx's time and crosses zero at
+about 7.5x. In other words TikTaxx needs roughly seven to eight times gataxx's thinking time per move to match it
+in this setup (both engines search at similar node rates, so this is a difference in quality per node, not raw speed).
+
 The last two imply roughly equal strength to TikTaxx, while the direct match says +115. The difference is
 within the combined error (about 1.7 sigma), but different time controls were used, so treat the direct
 match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
