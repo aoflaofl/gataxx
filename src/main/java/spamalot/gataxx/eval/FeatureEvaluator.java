@@ -46,6 +46,8 @@ public final class FeatureEvaluator implements Evaluator {
     static final long CORNERS = (1L << 0) | (1L << 6) | (1L << 42) | (1L << 48);
     /** The ring one step in from the edge. */
     static final long RING1;
+    /** The third ring (the 5x5 square minus the middle 3x3 is ring 1; this is the 3x3 minus the centre square). */
+    static final long RING2;
 
     static {
         long edge = 0;
@@ -66,6 +68,15 @@ public final class FeatureEvaluator implements Evaluator {
             }
         }
         RING1 = ring1;
+        long ring2 = 0;
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            int f = sq % Bitboards.SIZE;
+            int r = sq / Bitboards.SIZE;
+            if (Math.min(Math.min(f, Bitboards.SIZE - 1 - f), Math.min(r, Bitboards.SIZE - 1 - r)) == 2) {
+                ring2 |= 1L << sq;
+            }
+        }
+        RING2 = ring2;
     }
 
     /** Feature weights in score units. {@code material} is normally {@link #SCALE}. */
@@ -101,7 +112,7 @@ public final class FeatureEvaluator implements Evaluator {
      */
     public static final String[] FEATURE_NAMES = {
         "material", "safe", "mobility", "exposure", "reach", "territory", "edge", "corner", "ring1",
-        "cohesion", "threat", "dense", "bites3", "bitesSq"
+        "cohesion", "threat", "dense", "bites3", "bitesSq", "ring2", "holePure", "holeAdj", "holeSq"
     };
 
     private final Weights w;
@@ -154,6 +165,35 @@ public final class FeatureEvaluator implements Evaluator {
         }
         out[12] = bitesMine - bitesTheirs;
         out[13] = sqMine - sqTheirs;
+        out[14] = Long.bitCount(mine & RING2) - Long.bitCount(theirs & RING2);
+        // Holes: empty squares with no empty neighbour. A hole bordered only by one side's stones is a weakness for
+        // that side (whoever lands there converts all of them). Differences are mine minus theirs.
+        int pureMine = 0;
+        int pureTheirs = 0;
+        int adjMine = 0;
+        int adjTheirs = 0;
+        int sqHoleMine = 0;
+        int sqHoleTheirs = 0;
+        for (long t = empty; t != 0; t &= t - 1) {
+            long around = Bitboards.neighbours(Long.numberOfTrailingZeros(t));
+            if ((around & empty) != 0) {
+                continue;
+            }
+            int m = Long.bitCount(around & mine);
+            int o = Long.bitCount(around & theirs);
+            adjMine += m;
+            adjTheirs += o;
+            sqHoleMine += m * m;
+            sqHoleTheirs += o * o;
+            if (o == 0 && m > 0) {
+                pureMine++;
+            } else if (m == 0 && o > 0) {
+                pureTheirs++;
+            }
+        }
+        out[15] = pureMine - pureTheirs;
+        out[16] = adjMine - adjTheirs;
+        out[17] = sqHoleMine - sqHoleTheirs;
     }
 
     private static int dense(long pieces) {

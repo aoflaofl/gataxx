@@ -74,6 +74,68 @@ public final class UaiClient implements Player {
         ready();
     }
 
+    /** A move and the score its engine last reported for it ({@code null} if it reported none). */
+    public record Scored(String move, Integer score, int depth) {}
+
+    /**
+     * Like {@link #bestMove} but also returns the score from the engine's last {@code info} line. Understands both
+     * {@code score cp 75} and the bare {@code score 75} form; mate scores come back as {@code null}.
+     */
+    public Scored bestMoveWithScore(Position start, List<String> moves, String go, long timeoutMs)
+            throws IOException, TimeoutException {
+        StringBuilder pos = new StringBuilder("position fen ").append(start.toFen());
+        if (!moves.isEmpty()) {
+            pos.append(" moves ").append(String.join(" ", moves));
+        }
+        send(pos.toString());
+        send("go " + go);
+        List<String> seen = new java.util.ArrayList<>();
+        try {
+            String line = waitFor("bestmove ", timeoutMs, seen);
+            String[] t = line.split("\\s+");
+            if (t.length < 2) {
+                healthy = false;
+                throw new IOException("malformed bestmove: " + line);
+            }
+            Integer score = null;
+            int depth = 0;
+            for (String s : seen) {
+                if (!s.startsWith("info")) {
+                    continue;
+                }
+                String[] w = s.split("\\s+");
+                for (int i = 0; i + 1 < w.length; i++) {
+                    if (w[i].equals("depth")) {
+                        depth = parseIntOr(w[i + 1], depth);
+                    } else if (w[i].equals("score")) {
+                        String v = w[i + 1].equals("cp") && i + 2 < w.length ? w[i + 2] : w[i + 1];
+                        score = v.equals("mate") ? null : (Integer) parseIntOr(v, Integer.MIN_VALUE);
+                        if (score != null && score == Integer.MIN_VALUE) {
+                            score = null;
+                        }
+                    }
+                }
+            }
+            return new Scored(t[1], score, depth);
+        } catch (TimeoutException e) {
+            healthy = false;
+            try {
+                send("stop");
+            } catch (IOException ignored) {
+                // engine is already gone
+            }
+            throw e;
+        }
+    }
+
+    private static int parseIntOr(String s, int fallback) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     @Override
     public void newGame() throws IOException, TimeoutException {
         send("uainewgame");
@@ -126,6 +188,11 @@ public final class UaiClient implements Player {
 
     /** Reads engine output until a line starting with {@code prefix} arrives; skips everything else. */
     private String waitFor(String prefix, long timeoutMs) throws IOException, TimeoutException {
+        return waitFor(prefix, timeoutMs, null);
+    }
+
+    /** As above, additionally appending every line skipped on the way to {@code seen} when it is not null. */
+    private String waitFor(String prefix, long timeoutMs, List<String> seen) throws IOException, TimeoutException {
         long deadline = System.nanoTime() + timeoutMs * 1_000_000L;
         while (true) {
             long left = deadline - System.nanoTime();
@@ -149,6 +216,9 @@ public final class UaiClient implements Player {
             }
             if (line.startsWith(prefix)) {
                 return line;
+            }
+            if (seen != null) {
+                seen.add(line);
             }
         }
     }

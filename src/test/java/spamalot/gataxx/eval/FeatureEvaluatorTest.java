@@ -401,6 +401,99 @@ class FeatureEvaluatorTest {
         assertEquals(1, raw[12]);
     }
 
+    /** Naive loop version of ring2 and the three hole features, for comparison with the bitboard code. */
+    private static int[] naiveRing2AndHoles(Position pos) {
+        char me = pos.sideToMove() == Position.X ? 'x' : 'o';
+        char op = me == 'x' ? 'o' : 'x';
+        int ring2 = 0;
+        int pure = 0;
+        int adj = 0;
+        int sq = 0;
+        for (int p = 0; p < 49; p++) {
+            char c = at(pos, p);
+            int f = p % 7;
+            int r = p / 7;
+            int depth = Math.min(Math.min(f, 6 - f), Math.min(r, 6 - r));
+            if ((c == me || c == op) && depth == 2) {
+                ring2 += c == me ? 1 : -1;
+            }
+            if (c != '.') {
+                continue;
+            }
+            int m = 0;
+            int o = 0;
+            boolean hole = true;
+            for (int q = 0; q < 49; q++) {
+                if (q == p || cheb(p, q) != 1) {
+                    continue;
+                }
+                char d = at(pos, q);
+                if (d == '.') {
+                    hole = false;
+                } else if (d == me) {
+                    m++;
+                } else if (d == op) {
+                    o++;
+                }
+            }
+            if (hole) {
+                adj += m - o;
+                sq += m * m - o * o;
+                if (o == 0 && m > 0) {
+                    pure++;
+                } else if (m == 0 && o > 0) {
+                    pure--;
+                }
+            }
+        }
+        return new int[] {ring2, pure, adj, sq};
+    }
+
+    @Test
+    void ring2AndHoleFeaturesMatchNaiveImplementationOnRandomPositions() {
+        Random rnd = new Random(2024);
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        for (int i = 0; i < 400; i++) {
+            double wallRate = rnd.nextDouble() * 0.25;
+            double pieceRate = 0.3 + rnd.nextDouble() * 0.6; // fairly full boards, where holes occur
+            StringBuilder sb = new StringBuilder();
+            for (int r = 0; r < 7; r++) {
+                for (int c = 0; c < 7; c++) {
+                    double d = rnd.nextDouble();
+                    sb.append(d < wallRate ? '-' : d < wallRate + pieceRate ? (rnd.nextBoolean() ? 'x' : 'o') : '.');
+                }
+                if (r < 6) {
+                    sb.append('/');
+                }
+            }
+            Position pos = Position.fromFen(runLengthEncode(sb.toString()) + (rnd.nextBoolean() ? " x 0 1" : " o 0 1"));
+            FeatureEvaluator.rawFeatures(pos, raw);
+            int[] expected = naiveRing2AndHoles(pos);
+            assertEquals(expected[0], raw[14], "ring2\n" + pos);
+            assertEquals(expected[1], raw[15], "holePure\n" + pos);
+            assertEquals(expected[2], raw[16], "holeAdj\n" + pos);
+            assertEquals(expected[3], raw[17], "holeSq\n" + pos);
+        }
+    }
+
+    @Test
+    void holesOnAHandBuiltPosition() {
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        // The empty square d4 is ringed by eight x stones: one hole, all neighbours x. From x's side the pure-hole
+        // difference is +1 (a hole bordered only by my stones), with 8 adjacencies and 64 squared; o sees the mirror.
+        FeatureEvaluator.rawFeatures(Position.fromFen("6o/7/7/2xxx2/2x1x2/2xxx2/6o x 0 1"), raw);
+        assertEquals(1, raw[15]);
+        assertEquals(8, raw[16]);
+        assertEquals(64, raw[17]);
+        FeatureEvaluator.rawFeatures(Position.fromFen("6o/7/7/2xxx2/2x1x2/2xxx2/6o o 0 1"), raw);
+        assertEquals(-1, raw[15]);
+        assertEquals(-8, raw[16]);
+        assertEquals(-64, raw[17]);
+        // A mixed hole (4 x and 4 o neighbours) is not pure but still counts in the adjacency sums, which cancel.
+        FeatureEvaluator.rawFeatures(Position.fromFen("6o/7/7/2xxo2/2x1o2/2xoo2/6o x 0 1"), raw);
+        assertEquals(0, raw[15]);
+    }
+
     @Test
     void shiftsDoNotWrapAcrossFiles() {
         long gFile = 0;
