@@ -51,6 +51,11 @@ once the static score credits the side to move with its free clone (tempo).
 | Reach 4 | nodes, 400 games, then 1200 games fresh seed | +31, then +41 +/- 20 |
 | Reach 4 | timed, 1000 games | **+46 +/- 22** (adopted) |
 
+## Cumulative
+
+Current defaults vs the engine at commit `4b066fb` (no table, material-only evaluation, no quiescence), timed
+50 ms/move, 400 games: **346-54, +323 +/- 50 Elo**. This is still only self-play against older versions.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
