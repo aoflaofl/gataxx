@@ -1,6 +1,7 @@
 package spamalot.gataxx.search;
 
 import java.util.Arrays;
+import spamalot.gataxx.board.Bitboards;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Position;
 import spamalot.gataxx.eval.Evaluator;
@@ -42,6 +43,7 @@ public final class Searcher {
     private boolean exactDepthHitsOnly;
     private int qMinCaptures;
     private int qMaxPly;
+    private boolean usePvs;
 
     /** A searcher without a transposition table. */
     public Searcher(Evaluator evaluator) {
@@ -72,6 +74,15 @@ public final class Searcher {
         }
         this.qMinCaptures = minCaptures;
         this.qMaxPly = maxPly;
+    }
+
+    /**
+     * Principal variation search: search every move after the first with a zero-width window and re-search
+     * only when one turns out to beat the best so far. A pure efficiency change: the score of a completed
+     * search is the same.
+     */
+    public void setPvs(boolean pvs) {
+        this.usePvs = pvs;
     }
 
     /**
@@ -215,7 +226,16 @@ public final class Searcher {
             swap(moves, scores, i, bi);
 
             int move = moves[i];
-            int score = -negamax(pos.makeMove(move), depth - 1, -beta, -alpha, ply + 1, onPv && move == hint);
+            Position child = pos.makeMove(move);
+            int score;
+            if (usePvs && i > 0) {
+                score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false);
+                if (!aborted && score > alpha && score < beta) {
+                    score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, false);
+                }
+            } else {
+                score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, onPv && move == hint);
+            }
             if (aborted) {
                 return 0;
             }
@@ -314,7 +334,30 @@ public final class Searcher {
         return score;
     }
 
-    /** Scores moves for ordering: the PV move, then the table move, then by material swing (clones first). */
+    /** One step of material swing in the ordering score; the tie-breakers below are fractions of it. */
+    private static final int SWING_STEP = 1024;
+    /** Ordering bonus for landing on the outer ring (as the evaluation rewards edge pieces); tuned with `bench`. */
+    private static final int EDGE_BONUS = 1536;
+
+    private static final long EDGE_MASK;
+
+    static {
+        long m = 0;
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            int f = sq % Bitboards.SIZE;
+            int r = sq / Bitboards.SIZE;
+            if (f == 0 || f == Bitboards.SIZE - 1 || r == 0 || r == Bitboards.SIZE - 1) {
+                m |= 1L << sq;
+            }
+        }
+        EDGE_MASK = m;
+    }
+
+    /**
+     * Scores moves for ordering: the PV move, then the table move, then by material swing (clones first),
+     * with landing on the edge as a tie-breaker (the bonus is smaller than one swing step, so it only
+     * reorders moves with equal swing).
+     */
     private static void orderMoves(Position pos, int[] moves, int[] scores, int n, int pvMove, int ttMove) {
         for (int i = 0; i < n; i++) {
             int m = moves[i];
@@ -322,9 +365,16 @@ public final class Searcher {
                 scores[i] = Integer.MAX_VALUE;
             } else if (m == ttMove) {
                 scores[i] = Integer.MAX_VALUE - 1;
+            } else if (m == Move.PASS) {
+                scores[i] = 0;
             } else {
                 int clone = Move.isClone(m) ? 1 : 0;
-                scores[i] = (pos.captureCount(m) + clone) * 2 + clone;
+                int to = Move.to(m);
+                int s = ((pos.captureCount(m) + clone) * 2 + clone) * SWING_STEP;
+                if ((EDGE_MASK >>> to & 1) != 0) {
+                    s += EDGE_BONUS;
+                }
+                scores[i] = s;
             }
         }
     }
