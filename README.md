@@ -1,5 +1,7 @@
 # gataxx
 
+[![build](https://github.com/aoflaofl/gataxx/actions/workflows/build.yml/badge.svg)](https://github.com/aoflaofl/gataxx/actions/workflows/build.yml)
+
 An [Ataxx](https://en.wikipedia.org/wiki/Ataxx) game-playing engine written in Java 21.
 It runs at the command line (no GUI) and speaks the Universal Ataxx Interface (UAI),
 a UCI-style protocol. Moves are found with an iterative-deepening NegaMax search with

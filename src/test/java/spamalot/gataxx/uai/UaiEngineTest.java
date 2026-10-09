@@ -37,7 +37,7 @@ class UaiEngineTest {
     void handshake() {
         List<String> out = run("uai\n");
         assertTrue(out.get(0).startsWith("id name "), out.toString());
-        assertTrue(out.get(1).startsWith("id author "), out.toString());
+        assertEquals("id author " + UaiEngine.AUTHOR, out.get(1), out.toString());
         assertEquals("option name Hash type spin default 16 min 0 max 1024", out.get(2));
         assertEquals("option name Tempo type spin default 32 min 0 max 160", out.get(3));
         assertEquals("option name EvalSafe type spin default 4 min -64 max 64", out.get(4));

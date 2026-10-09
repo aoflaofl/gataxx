@@ -22,7 +22,7 @@ import spamalot.gataxx.search.TranspositionTable;
  */
 public final class UaiEngine {
     public static final String NAME = "gataxx";
-    public static final String AUTHOR = "spamalot";
+    public static final String AUTHOR = "Gene Johannsen";
 
     public static final int DEFAULT_HASH_MB = 16;
     public static final int MAX_HASH_MB = 1024;
