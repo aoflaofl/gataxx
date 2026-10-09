@@ -9,7 +9,8 @@ import java.util.List;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Perft;
 import spamalot.gataxx.board.Position;
-import spamalot.gataxx.eval.MaterialEvaluator;
+import spamalot.gataxx.eval.FeatureEvaluator;
+import spamalot.gataxx.eval.FeatureEvaluator.Weights;
 import spamalot.gataxx.search.SearchLimits;
 import spamalot.gataxx.search.SearchResult;
 import spamalot.gataxx.search.Searcher;
@@ -25,7 +26,8 @@ public final class UaiEngine {
 
     public static final int DEFAULT_HASH_MB = 16;
     public static final int MAX_HASH_MB = 1024;
-    public static final int DEFAULT_TEMPO = 2;
+    /** Tempo bonus in score units (1/16 piece): two pieces. */
+    public static final int DEFAULT_TEMPO = 2 * FeatureEvaluator.SCALE;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
     public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
@@ -37,6 +39,9 @@ public final class UaiEngine {
     private Position position = Position.startPos();
     private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
     private int tempo = DEFAULT_TEMPO;
+    private int evalSafe;
+    private int evalMobility;
+    private int evalExposure;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -86,7 +91,10 @@ public final class UaiEngine {
                     send("id name " + NAME + " " + spamalot.gataxx.Main.version());
                     send("id author " + AUTHOR);
                     send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
-                    send("option name Tempo type spin default " + DEFAULT_TEMPO + " min 0 max 10");
+                    send("option name Tempo type spin default " + DEFAULT_TEMPO + " min 0 max 160");
+                    send("option name EvalSafe type spin default 0 min -64 max 64");
+                    send("option name EvalMobility type spin default 0 min -64 max 64");
+                    send("option name EvalExposure type spin default 0 min -64 max 64");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
@@ -146,7 +154,13 @@ public final class UaiEngine {
             tt = null; // free the old table before allocating the new one
             tt = mb == 0 ? null : new TranspositionTable(mb);
         } else if (name.equalsIgnoreCase("Tempo")) {
-            tempo = spinValue(name, value, 0, 10);
+            tempo = spinValue(name, value, 0, 160);
+        } else if (name.equalsIgnoreCase("EvalSafe")) {
+            evalSafe = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalMobility")) {
+            evalMobility = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalExposure")) {
+            evalExposure = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
@@ -205,7 +219,8 @@ public final class UaiEngine {
     private void go(String[] tokens) {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
-        Searcher s = new Searcher(new MaterialEvaluator(tempo), tt);
+        Searcher s = new Searcher(new FeatureEvaluator(
+                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure, tempo)), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
@@ -230,7 +245,7 @@ public final class UaiEngine {
 
     private void sendInfo(SearchResult r) {
         StringBuilder sb = new StringBuilder("info depth ").append(r.depth())
-                .append(" score cp ").append(r.score())
+                .append(" score cp ").append(toCentipieces(r.score()))
                 .append(" nodes ").append(r.nodes())
                 .append(" time ").append(r.timeMs())
                 .append(" nps ").append(r.nodes() * 1000 / Math.max(1, r.timeMs()));
@@ -244,6 +259,11 @@ public final class UaiEngine {
             }
         }
         send(sb.toString());
+    }
+
+    /** Evaluation scores are reported so that 100 = one piece; forced-win/loss scores are left as they are. */
+    static int toCentipieces(int score) {
+        return Searcher.isMateScore(score) ? score : Math.floorDiv(score * 100 + FeatureEvaluator.SCALE / 2, FeatureEvaluator.SCALE);
     }
 
     private void perft(String[] tokens) {

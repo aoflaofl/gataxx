@@ -88,6 +88,11 @@ public final class Searcher {
         stopRequested = true;
     }
 
+    /** True for scores that encode a forced win or loss rather than a material evaluation. */
+    public static boolean isMateScore(int score) {
+        return Math.abs(score) >= WIN - MAX_PLY;
+    }
+
     /** Score, for the side to move, of a position where the game is over. */
     static int terminalScore(Position pos, int ply) {
         int diff = pos.count(pos.sideToMove()) - pos.count(1 - pos.sideToMove());

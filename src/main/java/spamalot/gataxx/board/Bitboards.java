@@ -49,6 +49,38 @@ public final class Bitboards {
         return RING2[sq];
     }
 
+    /** Moves every square one rank up (towards rank 7); squares leaving the board are dropped. */
+    public static long shiftNorth(long b) {
+        return (b << SIZE) & ALL;
+    }
+
+    public static long shiftSouth(long b) {
+        return b >>> SIZE;
+    }
+
+    /** Moves every square one file towards g, without wrapping onto the next rank. */
+    public static long shiftEast(long b) {
+        return (b << 1) & NOT_FILE_A;
+    }
+
+    public static long shiftWest(long b) {
+        return (b >>> 1) & NOT_FILE_G;
+    }
+
+    /**
+     * Number of (square in {@code a}, adjacent square in {@code b}) pairs, counting all eight
+     * directions, i.e. how many neighbour relations hold between the two sets.
+     */
+    public static int adjacentPairs(long a, long b) {
+        long n = shiftNorth(b);
+        long s = shiftSouth(b);
+        long e = shiftEast(b);
+        long w = shiftWest(b);
+        return Long.bitCount(a & n) + Long.bitCount(a & s) + Long.bitCount(a & e) + Long.bitCount(a & w)
+                + Long.bitCount(a & shiftNorth(e)) + Long.bitCount(a & shiftNorth(w))
+                + Long.bitCount(a & shiftSouth(e)) + Long.bitCount(a & shiftSouth(w));
+    }
+
     /** Every square in {@code b} plus all squares adjacent (incl. diagonals) to them. */
     public static long expand1(long b) {
         long row = b | ((b << 1) & NOT_FILE_A) | ((b >>> 1) & NOT_FILE_G);
