@@ -322,6 +322,27 @@ and 1.9 s at depth 6, 39.0M nodes and 3.1 s at depth 7 (reference checksums 445 
 depth is much cheaper but reduced plies are worth less than full ones, so the strength gain (+27 to +32 Elo) is about
 that of one to one and a half plies, not of the node savings.
 
+## Selective search: two-ply reductions and futility pruning
+
+Option `LmrDeepMoves` (default **6**): moves ranked this late or later, at remaining depth >= `LmrMinDepth` + 1, are reduced
+by two plies instead of one (0 = off). Option `Futility` (default 0) with `FutilityMargin` (48) and `FutilityDepth` (2): a
+move in a zero-window node at shallow depth is skipped if static score + the most the move can win (1 per clone + 2 per
+converted piece, times 16) + margin x depth cannot reach alpha.
+
+| Test | Result |
+|---|---|
+| bench depth 7 nodes, LMR default (39.0M, scoresum 729) vs `LmrDeepMoves` 4 / 6 / 8 / 12 | 16.2M / 17.7M / 18.9M / 21.4M; scoresum 755 / 751 / 751 / 739 |
+| bench depth 7: futility margin 48 depth <= 1 / <= 2; margin 96 / 160 (depth <= 2) | 36.0M / 34.8M / 36.9M / 38.2M: only -8% to -11% |
+| bench depth 7: null-move R=3 on top of LMR | 38.8M (vs 39.0M): redundant with the reductions |
+| Matches vs the previous default, 100k nodes/move, 400 games (+/- 34): `LmrDeepMoves` 4 / 6 / 8 / 12; futility | +67 / +53 / +54 / +49; futility +49 (likely luck, see below) |
+| Timed 50 ms, 800 games, fresh seed (+/- 25): `LmrDeepMoves` 6 / 4 | **+100** / +74 |
+| Timed 50 ms, 800 games: futility alone / `LmrDeepMoves` 6 + futility | +18 (not significant) / +96 (no better than 6 alone) |
+
+Adopted `LmrDeepMoves=6`; futility stays an option (off). The first futility reading (+49) shrank to +18 on a fresh seed,
+a reminder that several settings tried in one batch will produce lucky outliers. Bench with the new defaults:
+depth 6: 8.3M nodes, 0.74 s (scoresum 442); depth 7: 17.7M nodes, 1.44 s (751); depth 8: 60.5M nodes, 4.69 s (421).
+For comparison the original search took 62.1M nodes / 6.6 s at depth 6 and 210.7M nodes / 20.3 s at depth 7.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

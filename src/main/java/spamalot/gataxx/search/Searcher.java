@@ -44,9 +44,14 @@ public final class Searcher {
     private int qMinCaptures;
     private int qMaxPly;
     private boolean usePvs;
+    private boolean useFutility;
+    private int futilityMargin = 48;
+    private int futilityMaxDepth = 2;
+    private int futilityUnitsPerPiece = 1;
     private boolean useLmr;
     private int lmrFullMoves = 4;
     private int lmrMinDepth = 3;
+    private int lmrDeepMoves;
     private boolean useNullMove;
     private int nullReduction = 2;
     private int nullMinEmpties = 12;
@@ -92,6 +97,26 @@ public final class Searcher {
     }
 
     /**
+     * Futility pruning: in a zero-window node with at most {@code maxDepth} plies left, a move is skipped without being
+     * searched if the static score, plus the most the move itself can win, plus {@code margin} per remaining ply, still
+     * cannot reach alpha. A move wins {@code 1} piece for a clone plus {@code 2} per piece it converts. Selective and
+     * not exact (the opponent's reply, covered only by the margin, may change the balance); needs {@link #setPvs PVS}.
+     *
+     * @param margin safety margin in evaluation units per remaining ply, at least 0
+     * @param maxDepth deepest remaining depth at which it applies, at least 1
+     * @param unitsPerPiece evaluation units per piece (for example {@code FeatureEvaluator.SCALE}), at least 1
+     */
+    public void setFutility(boolean enabled, int margin, int maxDepth, int unitsPerPiece) {
+        if (margin < 0 || maxDepth < 1 || unitsPerPiece < 1) {
+            throw new IllegalArgumentException("futility parameters out of range");
+        }
+        this.useFutility = enabled;
+        this.futilityMargin = margin;
+        this.futilityMaxDepth = maxDepth;
+        this.futilityUnitsPerPiece = unitsPerPiece;
+    }
+
+    /**
      * Late-move reductions: in a zero-window search, moves that the ordering ranks {@code fullMoves} or later are searched
      * one ply shallower; if such a move nevertheless beats the best score, it is searched again at full depth. A selective,
      * non-exact technique that bets the ordering puts the best move early. Needs {@link #setPvs PVS} to have any effect.
@@ -106,6 +131,17 @@ public final class Searcher {
         this.useLmr = enabled;
         this.lmrFullMoves = fullMoves;
         this.lmrMinDepth = minDepth;
+    }
+
+    /**
+     * Reduce very late moves by two plies instead of one: moves ranked {@code deepMoves} or later, when the remaining
+     * depth is at least {@code minDepth + 1} (see {@link #setLmr}). Zero turns it off. Same caveats as {@link #setLmr}.
+     */
+    public void setLmrDeep(int deepMoves) {
+        if (deepMoves < 0) {
+            throw new IllegalArgumentException("deepMoves must not be negative");
+        }
+        this.lmrDeepMoves = deepMoves;
     }
 
     /**
@@ -269,6 +305,9 @@ public final class Searcher {
         int hint = onPv && ply < prevPv.length ? prevPv[ply] : Move.NONE;
         orderMoves(pos, moves, scores, n, hint, ttMove);
 
+        boolean futile = useFutility && !onPv && beta - alpha == 1 && depth <= futilityMaxDepth && ply > 0
+                && alpha > -(WIN - MAX_PLY) && alpha < WIN - MAX_PLY && !pos.isGameOver();
+        int staticScore = futile ? evaluator.evaluate(pos) : 0;
         int originalAlpha = alpha;
         int bestMove = Move.NONE;
         for (int i = 0; i < n; i++) {
@@ -282,11 +321,21 @@ public final class Searcher {
             swap(moves, scores, i, bi);
 
             int move = moves[i];
+            if (futile && i > 0 && move != Move.PASS) {
+                int gain = (pos.captureCount(move) * 2 + (Move.isClone(move) ? 1 : 0)) * futilityUnitsPerPiece;
+                if (staticScore + gain + futilityMargin * depth <= alpha) {
+                    continue;
+                }
+            }
             Position child = pos.makeMove(move);
             int score;
             if (usePvs && i > 0) {
                 boolean reduce = useLmr && i >= lmrFullMoves && depth >= lmrMinDepth;
-                score = -negamax(child, reduce ? depth - 2 : depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
+                int reduction = 0;
+                if (reduce) {
+                    reduction = lmrDeepMoves > 0 && i >= lmrDeepMoves && depth >= lmrMinDepth + 1 ? 2 : 1;
+                }
+                score = -negamax(child, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1, false, true);
                 if (!aborted && reduce && score > alpha) {
                     score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
                 }

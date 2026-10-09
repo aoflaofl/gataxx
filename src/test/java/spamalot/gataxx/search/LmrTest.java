@@ -30,6 +30,7 @@ class LmrTest {
         s.setQuiescence(3, 4);
         s.setPvs(true);
         s.setLmr(lmr, 3, 4);
+        s.setLmrDeep(lmr ? 6 : 0);
         return s;
     }
 
