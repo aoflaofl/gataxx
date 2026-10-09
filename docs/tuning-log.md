@@ -360,6 +360,26 @@ Same setup as before (100 ms/move, one thread each, Hash 128 for gataxx, 6-ply r
 Both independent opponents show about +100 Elo from the search changes made since 1.1.0, matching the self-play gain of
 the two-ply reductions (+100 +/- 25 timed). Funes remains clearly stronger.
 
+## After 1.2.0: further selective-search ideas (none adopted)
+
+Tried on top of the 1.2.0 defaults and then removed from the code (implementation notes so they are not retried blindly):
+three-ply reductions (rank >= N reduced by 3 plies at depth >= minDepth + 2), quality-based reductions (one extra ply for a
+move whose material swing is at least G pieces below the best swing at the node), and aspiration windows (from depth 4,
+window of +/- delta around the previous score, widened and doubled on failure; exact).
+
+| Test | Result |
+|---|---|
+| bench depth 7 nodes (1.2.0: 17.7M, scoresum 751): three-ply from rank 4 / 6 / 10 | 23.5M / 24.5M / 24.8M (+33% to +40%) |
+| swing gap 2 / 4 / 6 pieces | 21.0M / 20.3M / 16.9M (+19% / +15% / -4%) |
+| aspiration delta 24 / 48 | 19.0M / 19.3M (+8% / +9%), scoresum 751 (exact) |
+| Matches vs 1.2.0 defaults, 100k nodes/move, 400 games (+/- 34): three-ply (rank 10) / swing gap 6 / aspiration | +19 / +12 / +2 |
+| Retunes of the existing parameters, same test: `LmrMoves` 2 + `LmrDeepMoves` 4 / `LmrMoves` 4 + `LmrDeepMoves` 8 / `LmrMinDepth` 3 | +23 / +24 / +24 |
+| The three retunes in timed play, 50 ms, 800 games, fresh seed (+/- 24) | -1 / -5 / +7: no gain |
+
+The 1.2.0 reduction settings sit on a plateau and the further structures add nodes or nothing. Node counts mislead here:
+three-ply reductions use more nodes (their reduced searches fail high and are re-searched) and aspiration windows cost
+re-searches, while the one-ply and two-ply reductions with a re-search on surprise are the part that matters.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
