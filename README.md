@@ -33,6 +33,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name Tempo value <n>` | Bonus (in pieces) for the side to move in the static evaluation (default 2). |
 | `setoption name QuiesceMinCaptures value <n>` | Quiescence search extends moves converting at least this many pieces (default 3; `0` turns quiescence off). |
 | `setoption name QuiesceMaxPly value <n>` | Most extra plies quiescence may search (default 4, max 16). |
+| `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalMobility` and `EvalExposure` (default 0) are also available. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 

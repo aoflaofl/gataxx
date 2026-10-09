@@ -40,7 +40,7 @@ class UaiEngineTest {
         assertTrue(out.get(1).startsWith("id author "), out.toString());
         assertEquals("option name Hash type spin default 16 min 0 max 1024", out.get(2));
         assertEquals("option name Tempo type spin default 32 min 0 max 160", out.get(3));
-        assertEquals("option name EvalSafe type spin default 0 min -64 max 64", out.get(4));
+        assertEquals("option name EvalSafe type spin default 4 min -64 max 64", out.get(4));
         assertEquals("option name EvalMobility type spin default 0 min -64 max 64", out.get(5));
         assertEquals("option name EvalExposure type spin default 0 min -64 max 64", out.get(6));
         assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(7));

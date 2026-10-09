@@ -28,6 +28,8 @@ public final class UaiEngine {
     public static final int MAX_HASH_MB = 1024;
     /** Tempo bonus in score units (1/16 piece): two pieces. */
     public static final int DEFAULT_TEMPO = 2 * FeatureEvaluator.SCALE;
+    /** Weight of the safe-pieces feature, in score units (1/16 piece). Tuned by self-play. */
+    public static final int DEFAULT_EVAL_SAFE = 4;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
     public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
@@ -39,7 +41,7 @@ public final class UaiEngine {
     private Position position = Position.startPos();
     private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
     private int tempo = DEFAULT_TEMPO;
-    private int evalSafe;
+    private int evalSafe = DEFAULT_EVAL_SAFE;
     private int evalMobility;
     private int evalExposure;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
@@ -92,7 +94,7 @@ public final class UaiEngine {
                     send("id author " + AUTHOR);
                     send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
                     send("option name Tempo type spin default " + DEFAULT_TEMPO + " min 0 max 160");
-                    send("option name EvalSafe type spin default 0 min -64 max 64");
+                    send("option name EvalSafe type spin default " + DEFAULT_EVAL_SAFE + " min -64 max 64");
                     send("option name EvalMobility type spin default 0 min -64 max 64");
                     send("option name EvalExposure type spin default 0 min -64 max 64");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
