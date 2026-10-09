@@ -56,7 +56,30 @@ once the static score credits the side to move with its free clone (tempo).
 Current defaults vs the engine at commit `4b066fb` (no table, material-only evaluation, no quiescence), timed
 50 ms/move, 400 games: **346-54, +323 +/- 50 Elo**. This is still only self-play against older versions.
 
+## Against an outside engine: TikTaxx
+
+[TikTaxx](https://github.com/kz04px/tiktaxx) (C++, MIT, alpha-beta with null-move, LMR, futility pruning, killer
+moves and a transposition table), built from source at commit `95dffff`. libataxx was compiled directly with
+g++ (`-std=c++20 -O3 -march=native -DNDEBUG`, the 13 sources listed in `libs/libataxx/src/CMakeLists.txt`,
+archived with `ar` to `libs/libataxx/build/src/libataxx_static.a`) because CMake was not installed, then `make`.
+Run as a UAI subprocess by `Match`: `--engine2 path/to/tiktaxx`. Defaults used (Hash 128 MB, 1 thread).
+
+Fairness checks: with `go movetime N` it uses the full N ms (measured 50/100/200 ms wall-clock), and with
+`go btime/wtime` it uses time/30 of the clock of the side to move, with x on `btime`. That confirms the
+colour convention this engine assumes.
+
+| Match (100 ms/move, 1 thread each, 6-ply random openings) | Result |
+|---|---|
+| gataxx (current defaults, Hash 128) vs TikTaxx, 800 games | **527-1-272, +115 +/- 25 Elo** |
+| TikTaxx vs the original Phase 4 engine (no table, material only), 300 games | 265-35, +352 +/- 61 |
+| gataxx vs the same original engine, 50 ms/move, 400 games | 346-54, +323 +/- 50 |
+
+The last two imply roughly equal strength to TikTaxx, while the direct match says +115. The difference is
+within the combined error (about 1.7 sigma), but different time controls were used, so treat the direct
+match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
+one opening set; it is not a rating.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
-- Anything against an engine other than earlier versions of this one.
+- Other time controls against TikTaxx (only 100 ms/move so far), and other outside engines.

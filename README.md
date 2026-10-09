@@ -37,7 +37,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 
-`x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`).
+`x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
 The engine replies `info depth .. score cp .. nodes .. time .. nps .. pv ..` after each
 completed search depth (including `hashfull`, the table fill in permille), then `bestmove <move>`. A pass is `bestmove 0000`.
 
