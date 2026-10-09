@@ -146,6 +146,28 @@ Edge 6 / 10 / 12: +12 / +2 / -40. Safe 2 / 6: -30 / -7. Reach 0 / 8: -76 / +5. T
 Quiescence min captures 2: +14; quiescence max ply 6: -108. Nothing beat the current values, so the defaults
 stay: safe 4, edge 8, reach 4, cohesion -3, tempo 32, quiescence 3 captures / 4 plies.
 
+## Search speed and efficiency (bench: `bench [depth]`, 16 fixed positions; scoresum must not change)
+
+Baseline at depth 6: 62.1M nodes, 6.6 s (9.4M nps), scoresum 420; at depth 7: 210.7M nodes, 20.3 s, scoresum 740.
+
+| Change | Result |
+|---|---|
+| Profile (JFR) of the baseline | Quiescence was 46% self time (80% inclusive): it generated all moves and then filtered |
+| Generate only moves converting >= minCaptures directly (capture count depends only on the destination) | identical nodes and scores; +37% nps (9.4M -> 12.9M) |
+| Killer moves (2 per ply) above the material-swing ordering | nodes **+103%** (126M): worse |
+| Killer bonus sweep with PVS (512 .. 4096) | best 47.07M vs 47.17M without killers: no gain |
+| History heuristic as a tie-breaker | nodes +5%: worse |
+| PVS (zero-width window after the first move) | nodes -24% (47.2M), time -23% |
+| Edge destination tie-breaker in ordering (bonus 1536 of a 1024 step; plateau 1280-1792 at depth 7) | nodes a further -13%; 1536 chosen |
+| Penalty for jumping off the edge / for many own neighbours at the destination | worse (45-48M and ~42.7M vs 41.7M) |
+| **All together, depth 6** | **38.8M nodes (-38%), 3.0 s (-54%)**, scoresum 420 |
+| **All together, depth 7** | **139.1M nodes (-34%), 9.9 s (-51%)**, scoresum 740 |
+| New build vs the released 1.0.0, timed 50 ms/move, 800 games | **449-1-350, +43 +/- 24 Elo** |
+
+Killers and history are not in the code. PVS and the ordering change were verified to return exactly the scores of the
+plain search (against unpruned NegaMax at depth <= 5, with and without the table and quiescence, and over 80 random
+positions).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
