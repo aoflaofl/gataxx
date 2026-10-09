@@ -174,6 +174,85 @@ class FeatureEvaluatorTest {
         return out.toString();
     }
 
+    private static int naiveCornerRing1CohesionThreat(Position pos, Weights w) {
+        char me = pos.sideToMove() == Position.X ? 'x' : 'o';
+        char op = me == 'x' ? 'o' : 'x';
+        int[] cornerD = new int[1];
+        int corner = 0;
+        int ring1 = 0;
+        int cohesion = 0;
+        int threat = 0;
+        for (int p = 0; p < 49; p++) {
+            char c = at(pos, p);
+            if (c != me && c != op) {
+                continue;
+            }
+            int sign = c == me ? 1 : -1;
+            char enemy = c == me ? op : me;
+            int f = p % 7;
+            int r = p / 7;
+            int depth = Math.min(Math.min(f, 6 - f), Math.min(r, 6 - r));
+            if ((f == 0 || f == 6) && (r == 0 || r == 6)) {
+                corner += sign;
+            }
+            if (depth == 1) {
+                ring1 += sign;
+            }
+            for (int q = 0; q < 49; q++) {
+                if (q == p || cheb(p, q) != 1) {
+                    continue;
+                }
+                if (at(pos, q) == c) {
+                    cohesion += sign;
+                }
+                if (at(pos, q) == '.' && canReach(pos, enemy, q)) {
+                    threat += sign;
+                }
+            }
+        }
+        return w.corner() * corner + w.ring1() * ring1 + w.cohesion() * cohesion + w.threat() * threat;
+    }
+
+    @Test
+    void cornerRing1CohesionThreatMatchNaiveImplementation() {
+        Random rnd = new Random(1234);
+        Weights w = new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 7, 11);
+        FeatureEvaluator f = new FeatureEvaluator(w);
+        for (int i = 0; i < 400; i++) {
+            double wallRate = rnd.nextDouble() * 0.3;
+            double pieceRate = rnd.nextDouble() * 0.7;
+            StringBuilder sb = new StringBuilder();
+            for (int r = 0; r < 7; r++) {
+                for (int c = 0; c < 7; c++) {
+                    double d = rnd.nextDouble();
+                    sb.append(d < wallRate ? '-' : d < wallRate + pieceRate ? (rnd.nextBoolean() ? 'x' : 'o') : '.');
+                }
+                if (r < 6) {
+                    sb.append('/');
+                }
+            }
+            Position pos = Position.fromFen(runLengthEncode(sb.toString()) + (rnd.nextBoolean() ? " x 0 1" : " o 0 1"));
+            assertEquals(naiveCornerRing1CohesionThreat(pos, w), f.evaluate(pos), pos.toString());
+        }
+    }
+
+    @Test
+    void cornerRing1CohesionThreatOnHandBuiltPositions() {
+        // x on a1 and b2 (corner + second-ring), o on g7 (corner). x to move.
+        String fen = "6o/7/7/7/7/1x5/x6 x 0 1";
+        assertEquals(1 - 1, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0)));  // corners 1 v 1
+        assertEquals(1, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0)));      // ring1: b2 v none
+        // cohesion: x has the pair a1-b2 (counted both ways = 2); o has none.
+        assertEquals(2, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0)));
+        // threat: the enemy (g7) reaches only squares within 2 of g7, none beside x; x's reach covers
+        // squares up to c3/d4.. none beside o. Both 0.
+        assertEquals(0, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)));
+        // Now bring o's piece within range: o on c1, x on a1: o can land on b1/b2/a2 beside x and vice versa.
+        // x a1 has 3 empty neighbours, all reachable by o (c1 reaches a2? cheb((c1),(a2))=2 yes): 3.
+        // o c1 has empty neighbours b1,b2,c2,d1,d2; x (a1) reaches b1,b2,c2 (cheb<=2): 3 -> 3 - 3 = 0.
+        assertEquals(0, eval("7/7/7/7/7/7/x1o4 x 0 1", new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)));
+    }
+
     @Test
     void newFeaturesMatchNaiveImplementationOnRandomPositions() {
         Random rnd = new Random(77);

@@ -46,11 +46,15 @@ class UaiEngineTest {
         assertEquals("option name EvalReach type spin default 4 min -64 max 64", out.get(7));
         assertEquals("option name EvalTerritory type spin default 0 min -64 max 64", out.get(8));
         assertEquals("option name EvalEdge type spin default 8 min -64 max 64", out.get(9));
-        assertEquals("option name EvalFade type spin default 0 min 0 max 49", out.get(10));
-        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(11));
-        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(12));
-        assertEquals("uaiok", out.get(13));
-        assertEquals(14, out.size());
+        assertEquals("option name EvalCorner type spin default 0 min -64 max 64", out.get(10));
+        assertEquals("option name EvalRing1 type spin default 0 min -64 max 64", out.get(11));
+        assertEquals("option name EvalCohesion type spin default 0 min -64 max 64", out.get(12));
+        assertEquals("option name EvalThreat type spin default 0 min -64 max 64", out.get(13));
+        assertEquals("option name EvalFade type spin default 0 min 0 max 49", out.get(14));
+        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(15));
+        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(16));
+        assertEquals("uaiok", out.get(17));
+        assertEquals(18, out.size());
     }
 
     private static int lastHashfull(List<String> out) {
@@ -136,15 +140,33 @@ class UaiEngineTest {
 
     @Test
     void newEvalWeightOptionsChangeScores() {
-        // x sealed into a corner pocket, o on d4 and g7 (so no forced win): the new features all differ from zero.
-        String script = "position fen 6o/7/7/3o3/7/--5/x-5 x 0 1\ngo depth 1\n";
+        // A busy mid-game position searched to depth 3: every feature has something to measure there.
+        String script = "position startpos moves b6 a1a3 f2 g7e5 b5 e5c5 f3\ngo depth 3\n";
         String base = "setoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
                 + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
-        int plain = firstScore(run(base + script));
-        for (String opt : new String[] {"EvalReach", "EvalTerritory", "EvalEdge"}) {
-            int changed = firstScore(run(base + "setoption name " + opt + " value 16\n" + script));
+        int plain = scoreAtDepth(run(base + script), 3);
+        for (String opt : new String[] {"EvalReach", "EvalTerritory", "EvalEdge", "EvalRing1",
+                "EvalCohesion", "EvalThreat", "EvalMobility", "EvalExposure", "EvalSafe"}) {
+            int changed = scoreAtDepth(run(base + "setoption name " + opt + " value 32\n" + script), 3);
             assertTrue(changed != plain, opt + ": " + plain + " vs " + changed);
         }
+    }
+
+    @Test
+    void cornerOptionChangesScoreWhereACornerCanBeTaken() {
+        // x on b1 can clone into the empty corner a1; o holds no corner, so taking it changes the corner difference.
+        String script = "position fen 5o1/7/7/7/7/7/1x5 x 0 1\ngo depth 1\n";
+        String base = "setoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
+                + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
+        int plain = scoreAtDepth(run(base + script), 1);
+        int withCorner = scoreAtDepth(run(base + "setoption name EvalCorner value 32\n" + script), 1);
+        assertTrue(withCorner != plain, plain + " vs " + withCorner);
+    }
+
+    private static int scoreAtDepth(List<String> out, int depth) {
+        String line = out.stream().filter(l -> l.startsWith("info depth " + depth + " ")).findFirst().orElseThrow();
+        String[] t = line.split(" ");
+        return Integer.parseInt(t[Arrays.asList(t).indexOf("cp") + 1]);
     }
 
     @Test

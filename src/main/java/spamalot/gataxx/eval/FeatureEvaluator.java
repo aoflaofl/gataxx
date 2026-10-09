@@ -18,6 +18,11 @@ import spamalot.gataxx.board.Position;
  *   <li><b>territory</b>: empty squares only this side can reach in one move; they tend to be
  *       filled by that side before the game ends;
  *   <li><b>edge</b>: pieces on the outer ring, which have fewer neighbours to be captured through;
+ *   <li><b>corner</b>: pieces on the four corners (three neighbours);
+ *   <li><b>ring1</b>: pieces one step in from the edge;
+ *   <li><b>cohesion</b>: (piece, adjacent own piece) pairs, i.e. how compact a group is;
+ *   <li><b>threat</b>: (piece, adjacent empty square the enemy can land on) pairs, a graded form of
+ *       <i>reach</i>: how many conversions an enemy landing could cause;
  *   <li><b>tempo</b>: a flat bonus for the side to move.
  * </ul>
  *
@@ -31,6 +36,9 @@ public final class FeatureEvaluator implements Evaluator {
 
     /** The outer ring of the board. */
     static final long EDGE;
+    static final long CORNERS = (1L << 0) | (1L << 6) | (1L << 42) | (1L << 48);
+    /** The ring one step in from the edge. */
+    static final long RING1;
 
     static {
         long edge = 0;
@@ -42,11 +50,26 @@ public final class FeatureEvaluator implements Evaluator {
             }
         }
         EDGE = edge;
+        long ring1 = 0;
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            int f = sq % Bitboards.SIZE;
+            int r = sq / Bitboards.SIZE;
+            if (Math.min(Math.min(f, Bitboards.SIZE - 1 - f), Math.min(r, Bitboards.SIZE - 1 - r)) == 1) {
+                ring1 |= 1L << sq;
+            }
+        }
+        RING1 = ring1;
     }
 
     /** Feature weights in score units. {@code material} is normally {@link #SCALE}. */
     public record Weights(int material, int safe, int mobility, int exposure, int reach, int territory,
-                          int edge, int tempo, int fade) {
+                          int edge, int tempo, int fade, int corner, int ring1, int cohesion, int threat) {
+        /** Without the corner/ring1/cohesion/threat features. */
+        public Weights(int material, int safe, int mobility, int exposure, int reach, int territory,
+                       int edge, int tempo, int fade) {
+            this(material, safe, mobility, exposure, reach, territory, edge, tempo, fade, 0, 0, 0, 0);
+        }
+
         /** Without fading: the positional weights apply in full all game. */
         public Weights(int material, int safe, int mobility, int exposure, int reach, int territory,
                        int edge, int tempo) {
@@ -89,7 +112,7 @@ public final class FeatureEvaluator implements Evaluator {
         if (w.exposure() != 0) {
             positional += w.exposure() * (Bitboards.adjacentPairs(mine, empty) - Bitboards.adjacentPairs(theirs, empty));
         }
-        if (w.reach() != 0 || w.territory() != 0) {
+        if (w.reach() != 0 || w.territory() != 0 || w.threat() != 0) {
             long myReach = Bitboards.expand2(mine) & empty;
             long theirReach = Bitboards.expand2(theirs) & empty;
             if (w.reach() != 0) {
@@ -99,9 +122,22 @@ public final class FeatureEvaluator implements Evaluator {
                 positional += w.reach() * (Long.bitCount(mine) - Long.bitCount(myThreatened)
                         - Long.bitCount(theirs) + Long.bitCount(theirThreatened));
             }
+            if (w.threat() != 0) {
+                positional += w.threat() * (Bitboards.adjacentPairs(mine, theirReach)
+                        - Bitboards.adjacentPairs(theirs, myReach));
+            }
             if (w.territory() != 0) {
                 positional += w.territory() * (Long.bitCount(myReach & ~theirReach) - Long.bitCount(theirReach & ~myReach));
             }
+        }
+        if (w.corner() != 0) {
+            positional += w.corner() * (Long.bitCount(mine & CORNERS) - Long.bitCount(theirs & CORNERS));
+        }
+        if (w.ring1() != 0) {
+            positional += w.ring1() * (Long.bitCount(mine & RING1) - Long.bitCount(theirs & RING1));
+        }
+        if (w.cohesion() != 0) {
+            positional += w.cohesion() * (Bitboards.adjacentPairs(mine, mine) - Bitboards.adjacentPairs(theirs, theirs));
         }
         if (w.edge() != 0) {
             positional += w.edge() * (Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE));

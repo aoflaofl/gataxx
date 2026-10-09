@@ -52,6 +52,10 @@ public final class UaiEngine {
     private int evalTerritory;
     private int evalEdge = DEFAULT_EVAL_EDGE;
     private int evalFade;
+    private int evalCorner;
+    private int evalRing1;
+    private int evalCohesion;
+    private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -108,6 +112,10 @@ public final class UaiEngine {
                     send("option name EvalReach type spin default " + DEFAULT_EVAL_REACH + " min -64 max 64");
                     send("option name EvalTerritory type spin default 0 min -64 max 64");
                     send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
+                    send("option name EvalCorner type spin default 0 min -64 max 64");
+                    send("option name EvalRing1 type spin default 0 min -64 max 64");
+                    send("option name EvalCohesion type spin default 0 min -64 max 64");
+                    send("option name EvalThreat type spin default 0 min -64 max 64");
                     send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
@@ -181,6 +189,14 @@ public final class UaiEngine {
             evalTerritory = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalEdge")) {
             evalEdge = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalCorner")) {
+            evalCorner = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalRing1")) {
+            evalRing1 = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalCohesion")) {
+            evalCohesion = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalThreat")) {
+            evalThreat = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalFade")) {
             evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
@@ -243,7 +259,8 @@ public final class UaiEngine {
         Position root = position;
         Searcher s = new Searcher(new FeatureEvaluator(
                 new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
-                        evalReach, evalTerritory, evalEdge, tempo, evalFade)), tt);
+                        evalReach, evalTerritory, evalEdge, tempo, evalFade,
+                        evalCorner, evalRing1, evalCohesion, evalThreat)), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
