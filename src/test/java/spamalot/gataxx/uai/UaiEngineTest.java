@@ -38,8 +38,10 @@ class UaiEngineTest {
         assertTrue(out.get(0).startsWith("id name "), out.toString());
         assertTrue(out.get(1).startsWith("id author "), out.toString());
         assertEquals("option name Hash type spin default 16 min 0 max 1024", out.get(2));
-        assertEquals("uaiok", out.get(3));
-        assertEquals(4, out.size());
+        assertEquals("option name QuiesceMinCaptures type spin default 0 min 0 max 8", out.get(3));
+        assertEquals("option name QuiesceMaxPly type spin default 6 min 0 max 16", out.get(4));
+        assertEquals("uaiok", out.get(5));
+        assertEquals(6, out.size());
     }
 
     private static int lastHashfull(List<String> out) {
@@ -81,6 +83,22 @@ class UaiEngineTest {
                 + "setoption name Hash value 99999\nsetoption name Hash\nisready\n");
         assertEquals(4, out.stream().filter(l -> l.startsWith("info string error")).count(), out.toString());
         assertEquals("readyok", out.get(out.size() - 1));
+    }
+
+    @Test
+    void quiescenceOptionsChangeTheSearch() {
+        String pos = "position fen o6/o6/o3x2/6o/2x1x2/3x3/7 x 0 9\n";
+        String plain = bestmove(run(pos + "go depth 1\n"));
+        String withQ = bestmove(run("setoption name QuiesceMinCaptures value 2\nsetoption name QuiesceMaxPly value 6\n"
+                + pos + "go depth 1\n"));
+        assertEquals("c3b5", plain);
+        assertEquals("f3", withQ);
+    }
+
+    @Test
+    void badQuiescenceValuesReported() {
+        List<String> out = run("setoption name QuiesceMaxPly value 99\nsetoption name QuiesceMinCaptures value x\nisready\n");
+        assertEquals(2, out.stream().filter(l -> l.startsWith("info string error")).count(), out.toString());
     }
 
     @Test

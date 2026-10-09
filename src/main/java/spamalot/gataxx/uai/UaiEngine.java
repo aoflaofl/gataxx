@@ -26,6 +26,8 @@ public final class UaiEngine {
 
     public static final int DEFAULT_HASH_MB = 16;
     public static final int MAX_HASH_MB = 1024;
+    public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 0;
+    public static final int DEFAULT_QUIESCE_MAX_PLY = 6;
 
     private final BufferedReader in;
     private final PrintWriter out;
@@ -35,6 +37,8 @@ public final class UaiEngine {
     // Touched only by the command-reading thread.
     private Position position = Position.startPos();
     private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
+    private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
+    private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
     private Thread searchThread;
     private boolean searchIsInfinite;
@@ -82,6 +86,9 @@ public final class UaiEngine {
                     send("id name " + NAME + " " + spamalot.gataxx.Main.version());
                     send("id author " + AUTHOR);
                     send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
+                    send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
+                    send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
+                            + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
                     send("uaiok");
                 }
                 case "isready" -> send("readyok");
@@ -134,20 +141,29 @@ public final class UaiEngine {
         String name = String.join(" ", Arrays.copyOfRange(tokens, 2, valueAt < 0 ? tokens.length : valueAt));
         String value = valueAt < 0 ? "" : String.join(" ", Arrays.copyOfRange(tokens, valueAt + 1, tokens.length));
         if (name.equalsIgnoreCase("Hash")) {
-            int mb;
-            try {
-                mb = Integer.parseInt(value);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Hash needs a number of megabytes, got '" + value + "'", e);
-            }
-            if (mb < 0 || mb > MAX_HASH_MB) {
-                throw new IllegalArgumentException("Hash must be between 0 and " + MAX_HASH_MB + " MB");
-            }
+            int mb = spinValue(name, value, 0, MAX_HASH_MB);
             tt = null; // free the old table before allocating the new one
             tt = mb == 0 ? null : new TranspositionTable(mb);
+        } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
+            quiesceMinCaptures = spinValue(name, value, 0, 8);
+        } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
+            quiesceMaxPly = spinValue(name, value, 0, Searcher.MAX_QUIESCENCE_PLY);
         } else {
             send("info string unknown option: " + name);
         }
+    }
+
+    private static int spinValue(String name, String value, int min, int max) {
+        int v;
+        try {
+            v = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(name + " needs a whole number, got '" + value + "'", e);
+        }
+        if (v < min || v > max) {
+            throw new IllegalArgumentException(name + " must be between " + min + " and " + max);
+        }
+        return v;
     }
 
     /** {@code position startpos|fen <fen> [moves <m1> <m2> ...]}; leaves the position unchanged on error. */
@@ -187,6 +203,7 @@ public final class UaiEngine {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
         Searcher s = new Searcher(evaluator, tt);
+        s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
         searchThread = new Thread(() -> {

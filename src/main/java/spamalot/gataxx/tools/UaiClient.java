@@ -68,6 +68,12 @@ public final class UaiClient implements Player {
         return healthy && process.isAlive();
     }
 
+    /** Sends {@code setoption name <name> value <value>} and waits until the engine has processed it. */
+    public void setOption(String name, String value) throws IOException, TimeoutException {
+        send("setoption name " + name + " value " + value);
+        ready();
+    }
+
     @Override
     public void newGame() throws IOException, TimeoutException {
         send("uainewgame");

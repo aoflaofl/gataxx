@@ -18,7 +18,10 @@ public final class Searcher {
 
     public static final int MAX_DEPTH = 60;
 
-    private static final int MAX_PLY = MAX_DEPTH + 4;
+    /** Largest quiescence extension accepted by {@link #setQuiescence}. */
+    public static final int MAX_QUIESCENCE_PLY = 16;
+
+    private static final int MAX_PLY = MAX_DEPTH + MAX_QUIESCENCE_PLY + 4;
     private static final int INF = 30_000;
     private static final int NODE_CHECK_MASK = 1023;
 
@@ -37,6 +40,8 @@ public final class Searcher {
     private long maxNodes;
     private int[] prevPv = new int[0];
     private boolean exactDepthHitsOnly;
+    private int qMinCaptures;
+    private int qMaxPly;
 
     /** A searcher without a transposition table. */
     public Searcher(Evaluator evaluator) {
@@ -50,6 +55,23 @@ public final class Searcher {
     public Searcher(Evaluator evaluator, TranspositionTable tt) {
         this.evaluator = evaluator;
         this.tt = tt;
+    }
+
+    /**
+     * Enables quiescence search: at the horizon, instead of evaluating at once, keep searching moves
+     * that convert at least {@code minCaptures} enemy pieces, so a pending big capture is not
+     * missed. The side to move may always "stand pat" on the static score, which assumes it has some
+     * quiet move that doesn't lose material.
+     *
+     * @param minCaptures capture threshold for a move to count as noisy; 0 disables quiescence
+     * @param maxPly most extra plies searched beyond the horizon, at most {@link #MAX_QUIESCENCE_PLY}
+     */
+    public void setQuiescence(int minCaptures, int maxPly) {
+        if (minCaptures < 0 || maxPly < 0 || maxPly > MAX_QUIESCENCE_PLY) {
+            throw new IllegalArgumentException("quiescence parameters out of range");
+        }
+        this.qMinCaptures = minCaptures;
+        this.qMaxPly = maxPly;
     }
 
     /**
@@ -119,6 +141,9 @@ public final class Searcher {
     }
 
     private int negamax(Position pos, int depth, int alpha, int beta, int ply, boolean onPv) {
+        if (depth == 0 && qMinCaptures > 0) {
+            return quiesce(pos, alpha, beta, ply, 0);
+        }
         pvLen[ply] = 0;
         nodes++;
         if ((nodes & NODE_CHECK_MASK) == 0 && shouldAbort()) {
@@ -206,6 +231,68 @@ public final class Searcher {
         if (useTt) {
             int bound = alpha > originalAlpha ? TranspositionTable.BOUND_EXACT : TranspositionTable.BOUND_UPPER;
             tt.store(hash, depth, bound, scoreToTable(alpha, ply), bestMove);
+        }
+        return alpha;
+    }
+
+    /** Fail-hard alpha-beta over noisy moves only, with the static score as a lower bound (stand pat). */
+    private int quiesce(Position pos, int alpha, int beta, int ply, int qply) {
+        pvLen[ply] = 0;
+        nodes++;
+        if ((nodes & NODE_CHECK_MASK) == 0 && shouldAbort()) {
+            aborted = true;
+        }
+        if (aborted) {
+            return 0;
+        }
+        if (pos.isGameOver()) {
+            return terminalScore(pos, ply);
+        }
+        int standPat = evaluator.evaluate(pos);
+        if (standPat >= beta) {
+            return beta;
+        }
+        if (standPat > alpha) {
+            alpha = standPat;
+        }
+        if (qply >= qMaxPly) {
+            return alpha;
+        }
+
+        int[] moves = moveBuf[ply];
+        int[] scores = scoreBuf[ply];
+        int n = pos.generateMoves(moves);
+        int k = 0;
+        for (int i = 0; i < n; i++) {
+            int m = moves[i];
+            if (m == Move.PASS) {
+                continue;
+            }
+            int captures = pos.captureCount(m);
+            if (captures >= qMinCaptures) {
+                moves[k] = m;
+                scores[k] = captures * 2 + (Move.isClone(m) ? 1 : 0);
+                k++;
+            }
+        }
+        for (int i = 0; i < k; i++) {
+            int bi = i;
+            for (int j = i + 1; j < k; j++) {
+                if (scores[j] > scores[bi]) {
+                    bi = j;
+                }
+            }
+            swap(moves, scores, i, bi);
+            int score = -quiesce(pos.makeMove(moves[i]), -beta, -alpha, ply + 1, qply + 1);
+            if (aborted) {
+                return 0;
+            }
+            if (score >= beta) {
+                return beta;
+            }
+            if (score > alpha) {
+                alpha = score;
+            }
         }
         return alpha;
     }
