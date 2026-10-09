@@ -112,6 +112,24 @@ makes the other engine look worse by construction; use it for our own mistakes, 
   scale positional weights by min(empties, F)/F) refuted it: F = 6 / 10 / 15 / 25 gave -17 / -10 / -26 / -85
   Elo (+/- 34, 400 games, nodes). `EvalFade` stays in the code, default 0 (off).
 
+## More evaluation knowledge (all vs the then-default, nodes unless stated)
+
+| Feature (weight unit) | Weights tried | Result (Elo, +/- 34 at 400 games) |
+|---|---|---|
+| Corner pieces (1/16) | 4 / 8 / -4 | +5 / -5 / -45: nothing (edge covers it) |
+| Second-ring pieces (1/16) | 2 / 4 / -2 | -35 / -45 / +13: nothing |
+| Threat: own pieces beside squares the enemy can land on (1/16) | -1 / -2 / +1 | +47, then +15 +/- 24 on a fresh seed / -4 / -74: weak at best, dropped |
+| **Cohesion**: adjacent own-piece pairs (1/16 then 1/64) | +1 / +2 | -129 / -233 (rewarding compact groups is bad) |
+| Cohesion, negative weights in 1/16 | -1 / -2 | +65 (then +62 +/- 25 on a fresh seed) / -221 +/- 29: very narrow optimum |
+| Cohesion in 1/64 piece | -1 / -2 / -3 / -4 / -5 / -6 | +9 / +56 / +54 / +65 / +44 / -26: plateau -2..-5, cliff beyond |
+| Cohesion -3 vs -4, fresh seed, 800 games | | +64 +/- 25 / +62 +/- 25 |
+| Cohesion -3, timed 50 ms, 800 games | | **+97 +/- 25** (adopted, weight -3, the middle of the plateau) |
+
+Penalising adjacency between a side's own pieces (so groups stay spread out, with more empty squares to clone
+into and fewer pieces exposed along one front) is the third large gain after edge and safe pieces. The wrong
+sign is strongly negative, and the gain disappears abruptly past about -5 (and is -221 at -8), so the weight must
+stay in the middle of the plateau.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

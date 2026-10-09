@@ -20,9 +20,10 @@ import spamalot.gataxx.board.Position;
  *   <li><b>edge</b>: pieces on the outer ring, which have fewer neighbours to be captured through;
  *   <li><b>corner</b>: pieces on the four corners (three neighbours);
  *   <li><b>ring1</b>: pieces one step in from the edge;
- *   <li><b>cohesion</b>: (piece, adjacent own piece) pairs, i.e. how compact a group is;
+ *   <li><b>cohesion</b>: (piece, adjacent own piece) pairs, i.e. how compact a group is (weight in
+ *       1/{@link #FINE} units; a negative weight, favouring spread-out groups, is what helps);
  *   <li><b>threat</b>: (piece, adjacent empty square the enemy can land on) pairs, a graded form of
- *       <i>reach</i>: how many conversions an enemy landing could cause;
+ *       <i>reach</i>: how many conversions an enemy landing could cause (weight in 1/{@link #FINE} units);
  *   <li><b>tempo</b>: a flat bonus for the side to move.
  * </ul>
  *
@@ -33,6 +34,12 @@ import spamalot.gataxx.board.Position;
 public final class FeatureEvaluator implements Evaluator {
     /** Score units per piece. */
     public static final int SCALE = 16;
+
+    /**
+     * The cohesion and threat weights are in 1/FINE of a score unit (1/64 piece), because their
+     * adjacency counts are large and one whole unit is already a heavy weight.
+     */
+    public static final int FINE = 4;
 
     /** The outer ring of the board. */
     static final long EDGE;
@@ -124,7 +131,7 @@ public final class FeatureEvaluator implements Evaluator {
             }
             if (w.threat() != 0) {
                 positional += w.threat() * (Bitboards.adjacentPairs(mine, theirReach)
-                        - Bitboards.adjacentPairs(theirs, myReach));
+                        - Bitboards.adjacentPairs(theirs, myReach)) / FINE;
             }
             if (w.territory() != 0) {
                 positional += w.territory() * (Long.bitCount(myReach & ~theirReach) - Long.bitCount(theirReach & ~myReach));
@@ -137,7 +144,8 @@ public final class FeatureEvaluator implements Evaluator {
             positional += w.ring1() * (Long.bitCount(mine & RING1) - Long.bitCount(theirs & RING1));
         }
         if (w.cohesion() != 0) {
-            positional += w.cohesion() * (Bitboards.adjacentPairs(mine, mine) - Bitboards.adjacentPairs(theirs, theirs));
+            positional += w.cohesion() * (Bitboards.adjacentPairs(mine, mine)
+                    - Bitboards.adjacentPairs(theirs, theirs)) / FINE;
         }
         if (w.edge() != 0) {
             positional += w.edge() * (Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE));

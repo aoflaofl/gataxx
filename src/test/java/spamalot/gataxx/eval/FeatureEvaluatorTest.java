@@ -210,7 +210,8 @@ class FeatureEvaluatorTest {
                 }
             }
         }
-        return w.corner() * corner + w.ring1() * ring1 + w.cohesion() * cohesion + w.threat() * threat;
+        return w.corner() * corner + w.ring1() * ring1 + w.cohesion() * cohesion / FeatureEvaluator.FINE
+                + w.threat() * threat / FeatureEvaluator.FINE;
     }
 
     @Test
@@ -242,8 +243,9 @@ class FeatureEvaluatorTest {
         String fen = "6o/7/7/7/7/1x5/x6 x 0 1";
         assertEquals(1 - 1, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0)));  // corners 1 v 1
         assertEquals(1, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0)));      // ring1: b2 v none
-        // cohesion: x has the pair a1-b2 (counted both ways = 2); o has none.
-        assertEquals(2, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0)));
+        // cohesion: x has the pair a1-b2 (counted both ways = 2); o has none. Weight is in 1/FINE units.
+        assertEquals(2, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, FeatureEvaluator.FINE, 0)));
+        assertEquals(-1, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0))); // -2*2/4
         // threat: the enemy (g7) reaches only squares within 2 of g7, none beside x; x's reach covers
         // squares up to c3/d4.. none beside o. Both 0.
         assertEquals(0, eval(fen, new Weights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)));

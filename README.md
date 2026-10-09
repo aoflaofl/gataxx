@@ -33,7 +33,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name Tempo value <n>` | Bonus (in pieces) for the side to move in the static evaluation (default 2). |
 | `setoption name QuiesceMinCaptures value <n>` | Quiescence search extends moves converting at least this many pieces (default 3; `0` turns quiescence off). |
 | `setoption name QuiesceMaxPly value <n>` | Most extra plies quiescence may search (default 4, max 16). |
-| `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8), `EvalReach` (pieces no enemy can threaten next move, default 4), `EvalTerritory`, `EvalMobility` and `EvalExposure` (default 0) are also available. `EvalFade` (default 0, off) scales the positional weights down as the board fills; tested, no gain. |
+| `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8), `EvalReach` (pieces no enemy can threaten next move, default 4), `EvalTerritory`, `EvalMobility` and `EvalExposure` (default 0) are also available. `EvalCohesion` (default -3: penalises adjacent own pieces, favouring spread-out groups) and `EvalThreat` (default 0) are in 1/64 piece, the others in 1/16. `EvalFade` (default 0, off) scales the positional weights down as the board fills; tested, no gain. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 

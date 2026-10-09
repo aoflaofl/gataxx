@@ -34,6 +34,8 @@ public final class UaiEngine {
     public static final int DEFAULT_EVAL_EDGE = 8;
     /** Weight of the reach feature (pieces no enemy can threaten next move), in 1/16 piece. Tuned by self-play. */
     public static final int DEFAULT_EVAL_REACH = 4;
+    /** Weight of the cohesion feature, in 1/64 piece (negative: favour spread-out groups). Tuned by self-play. */
+    public static final int DEFAULT_EVAL_COHESION = -3;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
     public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
 
@@ -54,7 +56,7 @@ public final class UaiEngine {
     private int evalFade;
     private int evalCorner;
     private int evalRing1;
-    private int evalCohesion;
+    private int evalCohesion = DEFAULT_EVAL_COHESION;
     private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
@@ -114,7 +116,7 @@ public final class UaiEngine {
                     send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
                     send("option name EvalCorner type spin default 0 min -64 max 64");
                     send("option name EvalRing1 type spin default 0 min -64 max 64");
-                    send("option name EvalCohesion type spin default 0 min -64 max 64");
+                    send("option name EvalCohesion type spin default " + DEFAULT_EVAL_COHESION + " min -64 max 64");
                     send("option name EvalThreat type spin default 0 min -64 max 64");
                     send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
