@@ -43,10 +43,13 @@ class UaiEngineTest {
         assertEquals("option name EvalSafe type spin default 4 min -64 max 64", out.get(4));
         assertEquals("option name EvalMobility type spin default 0 min -64 max 64", out.get(5));
         assertEquals("option name EvalExposure type spin default 0 min -64 max 64", out.get(6));
-        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(7));
-        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(8));
-        assertEquals("uaiok", out.get(9));
-        assertEquals(10, out.size());
+        assertEquals("option name EvalReach type spin default 0 min -64 max 64", out.get(7));
+        assertEquals("option name EvalTerritory type spin default 0 min -64 max 64", out.get(8));
+        assertEquals("option name EvalEdge type spin default 0 min -64 max 64", out.get(9));
+        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(10));
+        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(11));
+        assertEquals("uaiok", out.get(12));
+        assertEquals(13, out.size());
     }
 
     private static int lastHashfull(List<String> out) {
@@ -128,6 +131,19 @@ class UaiEngineTest {
         assertEquals(List.of("readyok"), out);
         out = run("setoption name EvalSafe value 65\nsetoption name EvalMobility value -65\nisready\n");
         assertEquals(2, out.stream().filter(l -> l.startsWith("info string error")).count(), out.toString());
+    }
+
+    @Test
+    void newEvalWeightOptionsChangeScores() {
+        // x sealed into a corner pocket, o on d4 and g7 (so no forced win): the new features all differ from zero.
+        String script = "position fen 6o/7/7/3o3/7/--5/x-5 x 0 1\ngo depth 1\n";
+        String base = "setoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
+                + "setoption name EvalSafe value 0\n";
+        int plain = firstScore(run(base + script));
+        for (String opt : new String[] {"EvalReach", "EvalTerritory", "EvalEdge"}) {
+            int changed = firstScore(run(base + "setoption name " + opt + " value 16\n" + script));
+            assertTrue(changed != plain, opt + ": " + plain + " vs " + changed);
+        }
     }
 
     @Test

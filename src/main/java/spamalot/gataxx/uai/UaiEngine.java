@@ -44,6 +44,9 @@ public final class UaiEngine {
     private int evalSafe = DEFAULT_EVAL_SAFE;
     private int evalMobility;
     private int evalExposure;
+    private int evalReach;
+    private int evalTerritory;
+    private int evalEdge;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -97,6 +100,9 @@ public final class UaiEngine {
                     send("option name EvalSafe type spin default " + DEFAULT_EVAL_SAFE + " min -64 max 64");
                     send("option name EvalMobility type spin default 0 min -64 max 64");
                     send("option name EvalExposure type spin default 0 min -64 max 64");
+                    send("option name EvalReach type spin default 0 min -64 max 64");
+                    send("option name EvalTerritory type spin default 0 min -64 max 64");
+                    send("option name EvalEdge type spin default 0 min -64 max 64");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
@@ -163,6 +169,12 @@ public final class UaiEngine {
             evalMobility = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalExposure")) {
             evalExposure = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalReach")) {
+            evalReach = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalTerritory")) {
+            evalTerritory = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalEdge")) {
+            evalEdge = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
@@ -222,7 +234,8 @@ public final class UaiEngine {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
         Searcher s = new Searcher(new FeatureEvaluator(
-                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure, tempo)), tt);
+                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
+                        evalReach, evalTerritory, evalEdge, tempo)), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
