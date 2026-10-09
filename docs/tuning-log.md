@@ -130,6 +130,12 @@ into and fewer pieces exposed along one front) is the third large gain after edg
 sign is strongly negative, and the gain disappears abruptly past about -5 (and is -221 at -8), so the weight must
 stay in the middle of the plateau.
 
+## Re-check of the other settings after cohesion (vs the new default, nodes, 400 games, +/- 34)
+
+Edge 6 / 10 / 12: +12 / +2 / -40. Safe 2 / 6: -30 / -7. Reach 0 / 8: -76 / +5. Tempo 24 / 40: -38 / +19.
+Quiescence min captures 2: +14; quiescence max ply 6: -108. Nothing beat the current values, so the defaults
+stay: safe 4, edge 8, reach 4, cohesion -3, tempo 32, quiescence 3 captures / 4 plies.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
