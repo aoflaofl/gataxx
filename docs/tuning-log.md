@@ -168,7 +168,28 @@ Killers and history are not in the code. PVS and the ordering change were verifi
 plain search (against unpruned NegaMax at depth <= 5, with and without the table and quiescence, and over 80 random
 positions).
 
+## A second outside engine: GoTaxx
+
+[GoTaxx](https://github.com/cpirc/gotaxx) (Go, MIT, 2019, about 1800 lines, standard library only), built with
+`GOPROXY=off go build -o gotaxx ./engine` at commit `31c303d`. It speaks UAI but only understands `go movetime`
+(depth, nodes and clock times are ignored) and uses exactly the movetime given. Its `main` and its UAI loop each
+create a buffered reader on stdin, so piping all commands at once loses them; a GUI or `Match`, which wait for
+`uaiok`, are fine. The 20-game smoke test and all 1100 games ended normally (no illegal moves or timeouts).
+
+| Match (1 thread each, 6-ply random openings) | Score (first engine) | Elo (95%) |
+|---|---|---|
+| gataxx 1.1.0 vs GoTaxx, 100 ms, 400 games (Hash 128) | 366-0-34 (91.5%) | +413 +/- 61 |
+| gataxx 1.1.0 vs GoTaxx, 25 ms, 400 games | 362-0-38 (90.5%) | +392 +/- 58 |
+| TikTaxx vs GoTaxx, 100 ms, 300 games | 277-0-23 (92.3%) | +432 +/- 74 |
+
+Both stronger engines beat GoTaxx by about 90%+, so the scores are saturated: the Elo formula and the error bars are
+unreliable at that end, and the matches cannot separate gataxx from TikTaxx (the direct matches above can). GoTaxx
+is therefore not a useful yardstick; it only confirms that gataxx plays legal, sound Ataxx against a second
+independent implementation. A better second yardstick would be a stronger engine, or the same engine at a time
+handicap (for example TikTaxx given several times our time per move).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
-- Other outside engines (GoTaxx, Funes, ...), other TikTaxx settings, and TikTaxx with more than 400 ms/move.
+- Funes (C++, GPL-3.0, last pushed 2021; its README does not mention UAI), other TikTaxx settings, TikTaxx with more than
+  400 ms/move or a time handicap, and 1.1.0 against TikTaxx.
