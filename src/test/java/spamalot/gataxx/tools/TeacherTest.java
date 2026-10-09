@@ -24,6 +24,14 @@ class TeacherTest {
     }
 
     @Test
+    void quietFilterKeepsOnlyPositionsWithoutBigCaptures() {
+        String fen = "7/7/7/3oo2/2o4/7/1x5 x 0 1"; // x can convert three pieces by landing on d3
+        String game = fen + " | engine1=x | 1-0 | game over | b2";
+        assertEquals(1, Teacher.collect(List.of(game), 0, 0).size());
+        assertEquals(0, Teacher.collect(List.of(game), 0, 3).size());
+    }
+
+    @Test
     void samplingIsReproducibleAndKeepsOrder() {
         List<Teacher.Query> all = Teacher.collect(List.of(GAME), 0);
         List<Teacher.Query> a = Teacher.sample(all, 3, 7);

@@ -477,6 +477,81 @@ class FeatureEvaluatorTest {
     }
 
     @Test
+    void weakStoneFeaturesMatchNaiveCounts() {
+        Random rnd = new Random(77);
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        for (int i = 0; i < 300; i++) {
+            StringBuilder sb = new StringBuilder();
+            double pieceRate = 0.1 + rnd.nextDouble() * 0.6;
+            for (int r = 0; r < 7; r++) {
+                for (int c = 0; c < 7; c++) {
+                    sb.append(rnd.nextDouble() < pieceRate ? (rnd.nextBoolean() ? 'x' : 'o') : '.');
+                }
+                if (r < 6) {
+                    sb.append('/');
+                }
+            }
+            Position pos = Position.fromFen(runLengthEncode(sb.toString()) + (rnd.nextBoolean() ? " x 0 1" : " o 0 1"));
+            FeatureEvaluator.rawFeatures(pos, raw);
+            char me = pos.sideToMove() == Position.X ? 'x' : 'o';
+            int w4 = 0;
+            int w6 = 0;
+            for (int p = 0; p < 49; p++) {
+                char c = at(pos, p);
+                if (c != 'x' && c != 'o') {
+                    continue;
+                }
+                int emptyNeighbours = 0;
+                for (int q = 0; q < 49; q++) {
+                    if (q != p && cheb(p, q) == 1 && at(pos, q) == '.') {
+                        emptyNeighbours++;
+                    }
+                }
+                int sign = c == me ? 1 : -1;
+                w4 += emptyNeighbours >= 4 ? sign : 0;
+                w6 += emptyNeighbours >= 6 ? sign : 0;
+            }
+            assertEquals(w4, raw[18], "weak4\n" + pos);
+            assertEquals(w6, raw[19], "weak6\n" + pos);
+        }
+    }
+
+    @Test
+    void squareClassesPartitionTheBoardAndSumToMaterial() {
+        long all = 0;
+        int[] sizes = new int[10];
+        for (int sq = 0; sq < 49; sq++) {
+            sizes[FeatureEvaluator.SQUARE_CLASS[sq]]++;
+            all |= 1L << sq;
+        }
+        // Class sizes under the 8-fold symmetry of the 7x7 board: 4, 8, 8, 4, 4, 8, 8, 1, 4, 8... summing to 49.
+        assertEquals(49, java.util.Arrays.stream(sizes).sum());
+        assertEquals(4, sizes[0]); // corners
+        assertEquals(1, sizes[9]); // the centre square
+        assertEquals((1L << 49) - 1, all);
+        Random rnd = new Random(6);
+        int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
+        for (int i = 0; i < 200; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int r = 0; r < 7; r++) {
+                for (int c = 0; c < 7; c++) {
+                    sb.append(rnd.nextInt(3) == 0 ? '.' : rnd.nextBoolean() ? 'x' : 'o');
+                }
+                if (r < 6) {
+                    sb.append('/');
+                }
+            }
+            Position pos = Position.fromFen(runLengthEncode(sb.toString()) + " x 0 1");
+            FeatureEvaluator.rawFeatures(pos, raw);
+            int sum = 0;
+            for (int c = 0; c < 10; c++) {
+                sum += raw[20 + c];
+            }
+            assertEquals(raw[0], sum, "the ten square classes together are the material difference");
+        }
+    }
+
+    @Test
     void holesOnAHandBuiltPosition() {
         int[] raw = new int[FeatureEvaluator.FEATURE_NAMES.length];
         // The empty square d4 is ringed by eight x stones: one hole, all neighbours x. From x's side the pure-hole

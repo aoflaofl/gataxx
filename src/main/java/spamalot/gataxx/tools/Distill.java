@@ -18,7 +18,7 @@ import spamalot.gataxx.eval.FeatureEvaluator;
  * carry something the current set lacks.
  *
  * <pre>
- * java -cp gataxx.jar spamalot.gataxx.tools.Distill --scores scores.tsv [--quiet 3]
+ * java -cp gataxx.jar spamalot.gataxx.tools.Distill --scores scores.tsv [--quiet 3] [--max-score 3000]
  *     [--base material,safe,reach,edge,cohesion] [--candidates ring1,ring2,corner,holePure,...]
  * </pre>
  */
@@ -33,13 +33,21 @@ public final class Distill {
 
     private Distill() {}
 
-    public static List<Row> load(List<String> lines, int quiet) {
+    /**
+     * @param quiet if positive, drop positions where the side to move can convert at least this many pieces
+     * @param maxAbsScore drop rows whose teacher score is larger in magnitude (engines report a proven win or loss as a
+     *     huge constant, which would swamp a least-squares fit and says nothing about evaluation)
+     */
+    public static List<Row> load(List<String> lines, int quiet, double maxAbsScore) {
         FeatureEvaluator current = new FeatureEvaluator(Fit.currentWeights());
         int[] buf = new int[Position.MAX_MOVES];
         List<Row> rows = new ArrayList<>();
         for (String line : lines) {
             String[] f = line.split("\t");
             if (f.length < 4) {
+                continue;
+            }
+            if (Math.abs(Double.parseDouble(f[3])) > maxAbsScore) {
                 continue;
             }
             Position pos = Position.fromFen(f[2]);
@@ -59,7 +67,7 @@ public final class Distill {
             double[] r = new double[1 + columns.size()];
             r[0] = 1;
             for (int c = 0; c < columns.size(); c++) {
-                r[1 + c] = rows.get(i).raw()[columns.get(c)];
+                r[1 + c] = value(rows.get(i), columns.get(c));
             }
             x[i] = r;
         }
@@ -76,28 +84,46 @@ public final class Distill {
         return m.rSquared(matrix(test, columns), scores(test));
     }
 
+    /** Column codes at or above this mean "signed square of feature (code - OFFSET)": x * |x|, odd like the feature itself. */
+    private static final int SQUARE_OFFSET = 1000;
+
     private static List<Integer> indices(String list) {
         List<String> names = Arrays.asList(FeatureEvaluator.FEATURE_NAMES);
         List<Integer> out = new ArrayList<>();
-        for (String n : list.split(",")) {
+        for (String raw : list.split(",")) {
+            String n = raw;
+            boolean square = n.trim().endsWith("^2");
+            if (square) {
+                n = n.trim().substring(0, n.trim().length() - 2);
+            }
             int i = names.indexOf(n.trim());
             if (i < 0) {
                 throw new IllegalArgumentException("unknown feature " + n + "; known: " + names);
             }
-            out.add(i);
+            out.add(square ? SQUARE_OFFSET + i : i);
         }
         return out;
+    }
+
+    private static double value(Row row, int column) {
+        if (column >= SQUARE_OFFSET) {
+            double v = row.raw()[column - SQUARE_OFFSET];
+            return v * Math.abs(v);
+        }
+        return row.raw()[column];
     }
 
     public static void main(String[] args) throws IOException {
         Path file = null;
         int quiet = 3;
+        double maxAbsScore = 3000;
         String base = "material,safe,reach,edge,cohesion";
         String candidates = String.join(",", DEFAULT_CANDIDATES);
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--scores" -> file = Path.of(args[++i]);
                 case "--quiet" -> quiet = Integer.parseInt(args[++i]);
+                case "--max-score" -> maxAbsScore = Double.parseDouble(args[++i]);
                 case "--base" -> base = args[++i];
                 case "--candidates" -> candidates = args[++i];
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
@@ -107,7 +133,7 @@ public final class Distill {
             System.err.println("usage: Distill --scores FILE [--quiet N] [--base a,b] [--candidates c,d]");
             System.exit(2);
         }
-        List<Row> rows = load(Files.readAllLines(file), quiet);
+        List<Row> rows = load(Files.readAllLines(file), quiet, maxAbsScore);
         List<Row> train = new ArrayList<>();
         List<Row> test = new ArrayList<>();
         for (Row r : rows) {
@@ -134,7 +160,10 @@ public final class Distill {
         double baseR2 = heldOut(train, test, baseCols);
         System.out.printf("  base features [%s]%n      %.4f   (this is what refitting our own features can reach)%n", base, baseR2);
         Map<String, Double> gains = new LinkedHashMap<>();
-        for (String c : candidates.split(",")) {
+        if (candidates.equals("none")) {
+            candidates = "";
+        }
+        for (String c : candidates.isEmpty() ? new String[0] : candidates.split(",")) {
             List<Integer> cols = new ArrayList<>(baseCols);
             cols.addAll(indices(c));
             gains.put(c.trim(), heldOut(train, test, cols) - baseR2);
@@ -144,7 +173,7 @@ public final class Distill {
                 .forEach(e -> System.out.printf("  %-10s %+.4f%n", e.getKey(), e.getValue()));
 
         List<Integer> all = new ArrayList<>(baseCols);
-        for (String c : candidates.split(",")) {
+        for (String c : candidates.isEmpty() ? new String[0] : candidates.split(",")) {
             all.addAll(indices(c));
         }
         double allR2 = heldOut(train, test, all);
@@ -157,7 +186,9 @@ public final class Distill {
         System.out.printf("%n%-10s %12s %8s   %s%n", "term", "coef", "z", "x16/material (1/16 piece; cohesion in 1/64: x4)");
         System.out.printf("%-10s %12.3f %8.1f%n", "intercept", c[0], c[0] / se[0]);
         for (int k = 0; k < all.size(); k++) {
-            System.out.printf("%-10s %12.3f %8.1f   %8.2f%n", FeatureEvaluator.FEATURE_NAMES[all.get(k)], c[1 + k], c[1 + k] / se[1 + k], c[1 + k] * scale);
+            int col = all.get(k);
+            String name = col >= SQUARE_OFFSET ? FeatureEvaluator.FEATURE_NAMES[col - SQUARE_OFFSET] + "^2" : FeatureEvaluator.FEATURE_NAMES[col];
+            System.out.printf("%-10s %12.3f %8.1f   %8.2f%n", name, c[1 + k], c[1 + k] / se[1 + k], c[1 + k] * scale);
         }
     }
 }

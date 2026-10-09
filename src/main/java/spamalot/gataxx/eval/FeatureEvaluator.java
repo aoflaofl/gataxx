@@ -112,8 +112,34 @@ public final class FeatureEvaluator implements Evaluator {
      */
     public static final String[] FEATURE_NAMES = {
         "material", "safe", "mobility", "exposure", "reach", "territory", "edge", "corner", "ring1",
-        "cohesion", "threat", "dense", "bites3", "bitesSq", "ring2", "holePure", "holeAdj", "holeSq"
+        "cohesion", "threat", "dense", "bites3", "bitesSq", "ring2", "holePure", "holeAdj", "holeSq", "weak4", "weak6",
+        "psq0", "psq1", "psq2", "psq3", "psq4", "psq5", "psq6", "psq7", "psq8", "psq9"
     };
+
+    /**
+     * The ten kinds of square under the board's symmetries, indexed 0..9: corner (0,0), then by distance from the nearest
+     * edges (a,b) with a <= b: (0,1) (0,2) (0,3) (1,1) (1,2) (1,3) (2,2) (2,3) (3,3).
+     */
+    static final int[] SQUARE_CLASS = new int[Bitboards.SQUARES];
+    private static final long[] CLASS_MASK = new long[10];
+
+    static {
+        int[][] index = new int[4][4];
+        int n = 0;
+        for (int a = 0; a <= 3; a++) {
+            for (int b = a; b <= 3; b++) {
+                index[a][b] = n++;
+            }
+        }
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            int f = sq % Bitboards.SIZE;
+            int r = sq / Bitboards.SIZE;
+            int a = Math.min(Math.min(f, 6 - f), Math.min(r, 6 - r));
+            int b = Math.max(Math.min(f, 6 - f), Math.min(r, 6 - r));
+            SQUARE_CLASS[sq] = index[a][b];
+            CLASS_MASK[index[a][b]] |= 1L << sq;
+        }
+    }
 
     private final Weights w;
 
@@ -194,6 +220,22 @@ public final class FeatureEvaluator implements Evaluator {
         out[15] = pureMine - pureTheirs;
         out[16] = adjMine - adjTheirs;
         out[17] = sqHoleMine - sqHoleTheirs;
+        // Weak stones: stones with many empty neighbours (at least 4 / at least 6 of their up to 8).
+        out[18] = weak(mine, empty, 4) - weak(theirs, empty, 4);
+        out[19] = weak(mine, empty, 6) - weak(theirs, empty, 6);
+        for (int c = 0; c < 10; c++) {
+            out[20 + c] = Long.bitCount(mine & CLASS_MASK[c]) - Long.bitCount(theirs & CLASS_MASK[c]);
+        }
+    }
+
+    private static int weak(long pieces, long empty, int atLeast) {
+        int n = 0;
+        for (long p = pieces; p != 0; p &= p - 1) {
+            if (Long.bitCount(Bitboards.neighbours(Long.numberOfTrailingZeros(p)) & empty) >= atLeast) {
+                n++;
+            }
+        }
+        return n;
     }
 
     private static int dense(long pieces) {

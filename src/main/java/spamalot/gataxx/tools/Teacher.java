@@ -23,7 +23,7 @@ import spamalot.gataxx.board.Position;
  *
  * <pre>
  * java -cp gataxx.jar spamalot.gataxx.tools.Teacher --games games.txt --engine "path/to/engine" --out scores.tsv
- *     [--movetime 30] [--positions 20000] [--min-ply 10] [--workers 8] [--seed 1]
+ *     [--movetime 30] [--positions 20000] [--min-ply 10] [--quiet 3] [--workers 8] [--seed 1]
  * </pre>
  *
  * Output columns: game id, ply, FEN, score, depth reached, move. Positions where the engine fails or times out are skipped.
@@ -36,6 +36,15 @@ public final class Teacher {
 
     /** All positions of the finished, distinct games from ply {@code minPly} on, in file order. */
     public static List<Query> collect(List<String> gameLines, int minPly) {
+        return collect(gameLines, minPly, 0);
+    }
+
+    /**
+     * As above, keeping only "quiet" positions when {@code quiet} is positive: those where the side to move has no move
+     * converting at least that many pieces.
+     */
+    public static List<Query> collect(List<String> gameLines, int minPly, int quiet) {
+        int[] buf = new int[Position.MAX_MOVES];
         List<Query> out = new ArrayList<>();
         java.util.Set<String> seen = new java.util.HashSet<>();
         int gameId = 0;
@@ -48,7 +57,7 @@ public final class Teacher {
             Position pos = Position.fromFen(f[0].trim());
             String[] moves = f[4].trim().isEmpty() ? new String[0] : f[4].trim().split("\\s+");
             for (int ply = 0; ply < moves.length && !pos.isGameOver(); ply++) {
-                if (ply >= minPly) {
+                if (ply >= minPly && (quiet <= 0 || pos.generateCaptureMoves(buf, quiet) == 0)) {
                     out.add(new Query(gameId, ply, pos.toFen()));
                 }
                 pos = pos.makeMove(Move.parse(moves[ply]));
@@ -83,6 +92,7 @@ public final class Teacher {
         int movetime = 30;
         int positions = 20_000;
         int minPly = 10;
+        int quiet = 0;
         int workers = 8;
         long seed = 1;
         for (int i = 0; i < args.length; i++) {
@@ -93,6 +103,7 @@ public final class Teacher {
                 case "--movetime" -> movetime = Integer.parseInt(args[++i]);
                 case "--positions" -> positions = Integer.parseInt(args[++i]);
                 case "--min-ply" -> minPly = Integer.parseInt(args[++i]);
+                case "--quiet" -> quiet = Integer.parseInt(args[++i]);
                 case "--workers" -> workers = Integer.parseInt(args[++i]);
                 case "--seed" -> seed = Long.parseLong(args[++i]);
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
@@ -100,14 +111,14 @@ public final class Teacher {
         }
         if (files.isEmpty() || engine == null || out == null) {
             System.err.println("usage: Teacher --games FILE [--games FILE...] --engine CMD --out FILE"
-                    + " [--movetime MS] [--positions N] [--min-ply N] [--workers N] [--seed N]");
+                    + " [--movetime MS] [--positions N] [--min-ply N] [--quiet N] [--workers N] [--seed N]");
             System.exit(2);
         }
         List<String> lines = new ArrayList<>();
         for (Path f : files) {
             lines.addAll(Files.readAllLines(f));
         }
-        List<Query> queries = sample(collect(lines, minPly), positions, seed);
+        List<Query> queries = sample(collect(lines, minPly, quiet), positions, seed);
         System.out.println(queries.size() + " positions, engine \"" + engine + "\", " + movetime + " ms each, " + workers + " workers");
         List<String> command = Arrays.asList(engine.trim().split("\\s+"));
         String[] rows = run(queries, command, movetime, workers);

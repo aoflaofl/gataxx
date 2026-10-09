@@ -68,4 +68,18 @@ class FitTest {
         assertEquals(spamalot.gataxx.uai.UaiEngine.DEFAULT_TEMPO, w.tempo());
         assertEquals(0, w.mobility() + w.exposure() + w.territory() + w.corner() + w.ring1() + w.threat() + w.fade());
     }
+
+    @Test
+    void distillDropsDecidedPositionsAndNonQuietOnes() {
+        String quietFen = Position.START_FEN;
+        String bigCapture = "7/7/7/3oo2/2o4/7/1x5 x 0 1"; // x can convert three pieces at d3
+        List<String> rows = List.of(
+                "1\t10\t" + quietFen + "\t120\t11\tb6",
+                "1\t11\t" + quietFen + "\t100000\t11\tb6",
+                "2\t12\t" + quietFen + "\t-100000\t11\tb6",
+                "2\t13\t" + bigCapture + "\t80\t11\td3");
+        assertEquals(1, Distill.load(rows, 3, 3000).size(), "decided and non-quiet rows dropped");
+        assertEquals(2, Distill.load(rows, 0, 3000).size(), "quiet filter off keeps the capture position");
+        assertEquals(4, Distill.load(rows, 0, 1_000_000).size(), "no score cutoff keeps everything");
+    }
 }

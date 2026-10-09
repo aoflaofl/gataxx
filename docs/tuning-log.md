@@ -277,8 +277,9 @@ Search depth reached in 100 ms (last completed iteration, from each engine's `in
 | ply 40 | 12 / 266 | 4 / 933 |
 
 Node rates are similar (5-8M/s Funes, 5-10M/s gataxx), so the gap is not raw speed or search size but how fast the tree
-grows with depth: Funes needs about 2x the nodes per extra ply, gataxx 6-10x. That points at selective search
-(pruning and reductions) rather than evaluation as the main difference. Funes' own `patches/*.txt` notes (public
+grows with depth: Funes needs about 2x the nodes per extra ply, gataxx 6-10x. That suggested selective search (pruning and
+reductions) rather than evaluation as the main difference; **superseded**: the teacher experiment below found that more search does
+not bring gataxx's scores closer to Funes'. Funes' own `patches/*.txt` notes (public
 results of its author's tests) report large gains for border/corner bonuses, a second-player bonus and an endgame
 reduction, which is consistent with the edge and tempo findings here.
 
@@ -379,6 +380,51 @@ window of +/- delta around the previous score, widened and doubled on failure; e
 The 1.2.0 reduction settings sit on a plateau and the further structures add nodes or nothing. Node counts mislead here:
 three-ply reductions use more nodes (their reduced searches fail high and are re-searched) and aspiration windows cost
 re-searches, while the one-ply and two-ply reductions with a re-search on surprise are the part that matters.
+
+## Funes as a teacher (black-box distillation)
+
+Funes was treated purely as an opponent that answers "what is your score for this position?" (`tools.Teacher`; no source of
+Funes was read by the assistant). The user, who may read it, supplied a high-level description of its evaluation (four
+terms: a bonus for stones in valuable regions; a corner bonus with a penalty for centre stones; penalties for "holes",
+empty squares surrounded by stones, depending on who surrounds them and how many weak stones there are; safe stones versus
+weak stones surrounded by empty squares). No algorithm or values were given. Every term has a counterpart in our features
+except holes, which were added as new raw features (`holePure`, `holeAdj`, `holeSq`), together with `ring2`, `weak4`,
+`weak6` and ten square-class counts (`psq0`-`psq9`).
+
+Data: 6000 self-play games at 20000 nodes/move (3000 distinct); positions from ply 10 on; Funes at 30 ms/move (median depth 13,
+500 ms scores: depth 16). Funes reports a proven result as +/-100000 (13.5% of positions); those are excluded (they say nothing
+about evaluation), the rest lie within +/-3000 (sd about 520). `tools.Distill` fits our features to its score by linear
+regression and reports held-out R^2 (split by game).
+
+| Held-out R^2 against Funes' score | quiet positions (15,925) | all non-decided (17,286) |
+|---|---|---|
+| our current static evaluation, one scale parameter | 0.433 | 0.235 |
+| our five features, weights refitted | 0.439 | 0.285 |
+| + corner | 0.459 | – |
+| + every candidate | 0.450 | 0.305 |
+
+Gain from adding one candidate to the five (quiet positions): corner +0.0195, mobility +0.0067, territory +0.0033, threat +0.0033,
+bitesSq +0.0029, holePure +0.0013, weak4 +0.0015, signed squares of any feature at most +0.0022, ring1 +0.0007, ring2 -0.0009,
+holeAdj -0.0014, holeSq -0.0049, dense -0.0071. A full ten-class square table gives 0.4525, no better than the rings with corner.
+So the hole concept does not appear in Funes' judgement beyond our features, and only corner carries consistent extra signal.
+
+Playing the regression's corner weight (nodes 100000, 400 games vs the defaults, +/- 34): corner 12 / 24 / 36: **0 / -121 / -166**;
+corner 24 + safe 8: -58. As with safe, tempo and the other outcome-fitted weights, a feature that predicts a stronger engine's
+scores can still hurt when used as a static weight, because the search already accounts for it.
+
+Search versus knowledge (4000 positions, held-out R^2 of the target score explained by a linear function of the predictor score):
+
+| Target | ours 30 ms (depth 6) | ours 100 ms (8) | ours 300 ms (9) | ours 1000 ms (10) | Funes 30 ms (13) |
+|---|---|---|---|---|---|
+| Funes 300 ms (depth 16) | 0.388 | 0.424 | 0.445 | 0.437 | **0.883** |
+| Funes 30 ms (depth 13) | 0.423 | 0.399 | 0.371 | 0.375 | – |
+
+Forced results found in 4000 positions: Funes 517 (30 ms) / 597 (300 ms); gataxx 538 / 601 / 638 / 681 (30 / 100 / 300 / 1000 ms).
+Funes agrees with itself across a tenfold time change at 0.88; giving gataxx 30 times more time raises its agreement with Funes
+only from 0.39 to 0.44 and then plateaus. The gap is therefore not mainly search depth (an earlier note in this log said it
+was): gataxx values positions differently in a way more depth does not remove, even though none of the counting features
+tried, singly or together, expresses it. The remaining difference is either pattern-level structure (not counts) or an
+effective-depth effect hidden by selective search.
 
 ## Not yet measured
 
