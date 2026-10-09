@@ -23,8 +23,9 @@ experiment): version 1.1.0 beats the open-source C++ engine
 [TikTaxx](https://github.com/kz04px/tiktaxx) in about 72% of games (+160 Elo at 25 ms per move, +165 Elo at
 100 ms per move; one thread each, default settings, random 6-ply openings). Version 1.0.0 scored the same within
 error (+156 and +180); 1.1.0 searches about twice as fast and beats 1.0.0 by +43 Elo at 50 ms per move in
-self-play, but that speedup did not widen the lead over TikTaxx. These are comparisons against one engine, not
-ratings.
+self-play, but that speedup did not widen the lead over TikTaxx. A time-handicap test shows TikTaxx needs roughly
+7-8 times gataxx's thinking time per move to match it (25 ms for gataxx against 200 ms for TikTaxx scores level).
+These are comparisons against one engine, not ratings.
 
 ## Build and run
 
