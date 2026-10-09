@@ -93,6 +93,25 @@ within the combined error (about 1.7 sigma), but different time controls were us
 match as the better estimate and the gap as uncertain. This compares one engine build, one time control and
 one opening set; it is not a rating.
 
+## Where do we lose? (games vs TikTaxx, 100 ms/move, 400 games: 274-126)
+
+`scripts/analyze_regret.py` replays games and asks the engine (depth 7) how good each position was before and
+after every move; regret = how much worse the played move is than the engine's best. `recheck_regret.py` repeats
+the flagged moves at depth 11. The oracle is our own engine, so it shares our evaluation's blind spots, and it
+makes the other engine look worse by construction; use it for our own mistakes, not for comparing engines.
+
+- About 40 of the 126 losses were decided by the random opening within a few moves; 83 games were analysed.
+- Flagged blunders (>= 3 pieces at depth 7) are concentrated with fewer than 15 empty squares (5% of moves vs
+  0.1-0.2% earlier), but only 30% of them (23 of 77) survive a depth-11 check; the rest were oracle noise.
+- Confirmed blunders: 23 in 20 of 83 lost games (24%) vs 9 in 9 of 83 won games (11%); 14.7 vs 4.5 per 1000
+  endgame moves. 19 of 23 occurred with 8 or fewer empty squares and in 21 of 23 we were already behind.
+- So endgame blunders explain at most a quarter of the non-trivial losses; 76% of lost games have no confirmed
+  blunder and are decided by something earlier or more strategic that this tool cannot see.
+- Hypothesis: positional terms mislead in the endgame, where only the final count matters. Re-searching the 23
+  positions without positional terms avoided 2-3 more blunders (not significant). The match test (`EvalFade`:
+  scale positional weights by min(empties, F)/F) refuted it: F = 6 / 10 / 15 / 25 gave -17 / -10 / -26 / -85
+  Elo (+/- 34, 400 games, nodes). `EvalFade` stays in the code, default 0 (off).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

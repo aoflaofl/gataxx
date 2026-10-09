@@ -220,6 +220,40 @@ class FeatureEvaluatorTest {
     }
 
     @Test
+    void fadeScalesPositionalFeaturesByEmptySquares() {
+        Weights none = new Weights(16, 0, 0, 0, 0, 0, 0, 32);
+        Weights noFade = new Weights(16, 4, 0, 0, 4, 0, 8, 32);
+        Random rnd = new Random(12);
+        int[] buf = new int[Position.MAX_MOVES];
+        Position p = Position.startPos();
+        for (int ply = 0; ply < 90 && !p.isGameOver(); ply++) {
+            int empties = Long.bitCount(p.empty());
+            int base = new FeatureEvaluator(none).evaluate(p);
+            int positional = new FeatureEvaluator(noFade).evaluate(p) - base;
+            for (int fade : new int[] {1, 6, 12, 30}) {
+                Weights faded = new Weights(16, 4, 0, 0, 4, 0, 8, 32, fade);
+                assertEquals(base + positional * Math.min(empties, fade) / fade,
+                        new FeatureEvaluator(faded).evaluate(p), "fade " + fade + " empties " + empties);
+            }
+            int n = p.generateMoves(buf);
+            p = p.makeMove(buf[rnd.nextInt(n)]);
+        }
+    }
+
+    @Test
+    void fadeOffAndFullBoardBehaviour() {
+        Weights noFade = new Weights(16, 4, 0, 0, 4, 0, 8, 32);
+        Weights fadeOff = new Weights(16, 4, 0, 0, 4, 0, 8, 32, 0);
+        assertEquals(noFade, fadeOff);
+        // No empty squares: positional features are scaled to zero, leaving material and tempo.
+        String full = "xxxxxxx/xxxxxxx/xxxxxxx/xxxooox/xxxxxxx/xxxxxxx/xxxxxxx x 0 1";
+        assertEquals(16 * (46 - 3) + 32, eval(full, new Weights(16, 4, 0, 0, 4, 0, 8, 32, 10)));
+        // Unfaded: base 16*43+32 = 720, plus safe 4*43 + reach 4*43 (nothing is threatened with no empty
+        // squares) + edge 8*24 (x holds all 24 edge squares, o none) = 536.
+        assertEquals(720 + 536, eval(full, noFade));
+    }
+
+    @Test
     void shiftsDoNotWrapAcrossFiles() {
         long gFile = 0;
         long aFile = 0;

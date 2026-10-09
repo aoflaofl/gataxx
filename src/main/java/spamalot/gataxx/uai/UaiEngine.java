@@ -51,6 +51,7 @@ public final class UaiEngine {
     private int evalReach = DEFAULT_EVAL_REACH;
     private int evalTerritory;
     private int evalEdge = DEFAULT_EVAL_EDGE;
+    private int evalFade;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
@@ -107,6 +108,7 @@ public final class UaiEngine {
                     send("option name EvalReach type spin default " + DEFAULT_EVAL_REACH + " min -64 max 64");
                     send("option name EvalTerritory type spin default 0 min -64 max 64");
                     send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
+                    send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
@@ -179,6 +181,8 @@ public final class UaiEngine {
             evalTerritory = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalEdge")) {
             evalEdge = spinValue(name, value, -64, 64);
+        } else if (name.equalsIgnoreCase("EvalFade")) {
+            evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
@@ -239,7 +243,7 @@ public final class UaiEngine {
         Position root = position;
         Searcher s = new Searcher(new FeatureEvaluator(
                 new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
-                        evalReach, evalTerritory, evalEdge, tempo)), tt);
+                        evalReach, evalTerritory, evalEdge, tempo, evalFade)), tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());

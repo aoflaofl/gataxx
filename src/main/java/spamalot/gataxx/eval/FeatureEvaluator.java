@@ -20,6 +20,10 @@ import spamalot.gataxx.board.Position;
  *   <li><b>edge</b>: pieces on the outer ring, which have fewer neighbours to be captured through;
  *   <li><b>tempo</b>: a flat bonus for the side to move.
  * </ul>
+ *
+ * <p>With {@code fade > 0} every positional feature (everything except material and tempo) is scaled
+ * by {@code min(empty squares, fade) / fade}, so near the end of the game, when only the final piece
+ * count matters, the score becomes plain material.
  */
 public final class FeatureEvaluator implements Evaluator {
     /** Score units per piece. */
@@ -42,7 +46,13 @@ public final class FeatureEvaluator implements Evaluator {
 
     /** Feature weights in score units. {@code material} is normally {@link #SCALE}. */
     public record Weights(int material, int safe, int mobility, int exposure, int reach, int territory,
-                          int edge, int tempo) {
+                          int edge, int tempo, int fade) {
+        /** Without fading: the positional weights apply in full all game. */
+        public Weights(int material, int safe, int mobility, int exposure, int reach, int territory,
+                       int edge, int tempo) {
+            this(material, safe, mobility, exposure, reach, territory, edge, tempo, 0);
+        }
+
         /** The original five-feature form; the newer features are off. */
         public Weights(int material, int safe, int mobility, int exposure, int tempo) {
             this(material, safe, mobility, exposure, 0, 0, 0, tempo);
@@ -66,17 +76,18 @@ public final class FeatureEvaluator implements Evaluator {
         long mine = pos.pieces(me);
         long theirs = pos.pieces(1 - me);
         int score = w.tempo() + w.material() * (Long.bitCount(mine) - Long.bitCount(theirs));
+        int positional = 0;
         long empty = pos.empty();
         if (w.safe() != 0) {
             long exposedZone = Bitboards.expand1(empty);
-            score += w.safe() * (Long.bitCount(mine & ~exposedZone) - Long.bitCount(theirs & ~exposedZone));
+            positional += w.safe() * (Long.bitCount(mine & ~exposedZone) - Long.bitCount(theirs & ~exposedZone));
         }
         if (w.mobility() != 0) {
-            score += w.mobility() * (Long.bitCount(Bitboards.expand1(mine) & empty)
+            positional += w.mobility() * (Long.bitCount(Bitboards.expand1(mine) & empty)
                     - Long.bitCount(Bitboards.expand1(theirs) & empty));
         }
         if (w.exposure() != 0) {
-            score += w.exposure() * (Bitboards.adjacentPairs(mine, empty) - Bitboards.adjacentPairs(theirs, empty));
+            positional += w.exposure() * (Bitboards.adjacentPairs(mine, empty) - Bitboards.adjacentPairs(theirs, empty));
         }
         if (w.reach() != 0 || w.territory() != 0) {
             long myReach = Bitboards.expand2(mine) & empty;
@@ -85,16 +96,19 @@ public final class FeatureEvaluator implements Evaluator {
                 // A piece is threatened if an empty square next to it can be reached by the other side.
                 long myThreatened = mine & Bitboards.expand1(theirReach);
                 long theirThreatened = theirs & Bitboards.expand1(myReach);
-                score += w.reach() * (Long.bitCount(mine) - Long.bitCount(myThreatened)
+                positional += w.reach() * (Long.bitCount(mine) - Long.bitCount(myThreatened)
                         - Long.bitCount(theirs) + Long.bitCount(theirThreatened));
             }
             if (w.territory() != 0) {
-                score += w.territory() * (Long.bitCount(myReach & ~theirReach) - Long.bitCount(theirReach & ~myReach));
+                positional += w.territory() * (Long.bitCount(myReach & ~theirReach) - Long.bitCount(theirReach & ~myReach));
             }
         }
         if (w.edge() != 0) {
-            score += w.edge() * (Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE));
+            positional += w.edge() * (Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE));
         }
-        return score;
+        if (w.fade() > 0) {
+            positional = positional * Math.min(Long.bitCount(empty), w.fade()) / w.fade();
+        }
+        return score + positional;
     }
 }
