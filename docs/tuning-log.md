@@ -596,6 +596,22 @@ Only `LmrMoves` showed a trend, so it was repeated on a fresh seed (2727, 1600 g
 The first reading was noise. The defaults (`LmrMoves` 3, `LmrMinDepth` 4, `LmrDeepMoves` 6, `PatternMargin` 32,
 `PatternBlend` 50) stay; they sit on a plateau, as they did before the jump cut.
 
+## Outside engines after the quiescence jump cut (100 ms/move, one thread each, Hash 128, 6-ply random openings)
+
+`main` at `fb82cee` (defaults: `QuiesceJumpCut` 1, `QuiesceMaxPly` 5, built-in pattern table, `Threads` 1) against TikTaxx
+(`95dffff`, libataxx with cmake then `make`, `-O3 -march=native`) and Funes (`dd319f1`, cmake Release), both rebuilt from source
+for this run. The earlier column is the 1.3.0 measurement on the same seeds.
+
+| Opponent | games, seed | main (this run) | 1.3.0 (same seed) |
+|---|---|---|---|
+| TikTaxx | 400, 5150 | 351-49 (87.8%), **+342.0 +/- 51.9** | +269.4 +/- 44.8 |
+| Funes | 400, 5150 | 185-215 (46.3%), **-26.1 +/- 34.1** | -186.2 +/- 39.1 |
+| Funes | 1200, 7 | 514-686 (42.8%), **-50.1 +/- 19.9** | -157.7 +/- 21.7 |
+
+Against Funes the gap closed by about 110-160 Elo and gataxx now loses 43-46% of games instead of 72-75%; against TikTaxx the
+result moved by about +70. One game in the large Funes run ended with Funes sending an illegal move (game 773, scored as a win
+for gataxx; at most 1 Elo). The test suite (225 tests) passes on this commit.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
