@@ -579,6 +579,23 @@ evaluation. Bench 9 with the new defaults: 149.9M nodes in 11.6 s, scoresum 413.
 Validation of the new defaults against the published 1.4.0 jar, timed 50 ms, one thread each, 1600 games, seed 4444:
 **+1075 -525, +124.5 +/- 18.1 Elo**.
 
+## Retune after the jump cut (nothing adopted)
+
+With the smaller quiescence tree (`QuiesceJumpCut` 1, `QuiesceMaxPly` 5), each setting against the new defaults, timed 50 ms,
+1200 games, seed 1313 (+/- 20):
+
+| Setting | Result |
+|---|---|
+| `LmrMoves` 2 / 4 | +19.1 / -20.9 |
+| `LmrMinDepth` 3 | +7.5 |
+| `LmrDeepMoves` 4 | +7.5 |
+| `PatternMargin` 48 | +4.1 |
+| `PatternBlend` 75 | -1.7 |
+
+Only `LmrMoves` showed a trend, so it was repeated on a fresh seed (2727, 1600 games, +/- 17): `LmrMoves` 2 **-1.3**, 1 **-3.5**.
+The first reading was noise. The defaults (`LmrMoves` 3, `LmrMinDepth` 4, `LmrDeepMoves` 6, `PatternMargin` 32,
+`PatternBlend` 50) stay; they sit on a plateau, as they did before the jump cut.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
