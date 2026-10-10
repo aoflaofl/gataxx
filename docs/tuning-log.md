@@ -630,6 +630,9 @@ leaves removes half the remaining nodes without changing strength. Adopted: `Jum
 12 guard, so the endgame keeps every jump), the simplest rule that gets the gain. `JumpCutNear` / `JumpCutNearDepth` stay as
 options (default off) because the nodes they save were not worth strength.
 
+Validation of the new defaults (`JumpCut` 3) against the published 1.5.0 jar, timed 50 ms, one thread each, 2000 games, seed
+1212: **+1068 =1 -931, +23.8 +/- 15.3 Elo**. Bench 9: 130.4M nodes, scoresum 411. The suite (225 tests) passes.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
