@@ -19,6 +19,10 @@ public final class Position {
 
     public static final String START_FEN = "x5o/7/7/7/7/7/o5x x 0 1";
 
+    /** Layout of the ordering keys made by {@link #generateScoredCaptureMoves}: score above, reversed index in the low bits. */
+    public static final int KEY_SHIFT = 10;
+    public static final int KEY_INDEX_MASK = (1 << KEY_SHIFT) - 1;
+
     /** Half-move clock value at which the game is drawn-out and ends by count. */
     public static final int HALFMOVE_LIMIT = 100;
 
@@ -240,10 +244,11 @@ public final class Position {
     }
 
     /**
-     * Like {@link #generateCaptureMoves} for a position the caller has already found not to be over, and with an ordering score
-     * per move in {@code scores}: twice the number of enemy pieces the move converts, plus one for a clone.
+     * Like {@link #generateCaptureMoves} for a position the caller has already found not to be over, and with an ordering key
+     * per move in {@code keys}: the score (twice the number of enemy pieces the move converts, plus one for a clone) shifted left
+     * by {@link #KEY_SHIFT}, plus {@code KEY_INDEX_MASK - index}, so that the maximum key is the first move with the best score.
      */
-    public int generateScoredCaptureMoves(int[] out, int[] scores, int minCaptures) {
+    public int generateScoredCaptureMoves(int[] out, int[] keys, int minCaptures) {
         long mine = pieces(sideToMove);
         long theirs = pieces(1 - sideToMove);
         long noisy = Bitboards.expand2(mine) & empty() & Bitboards.atLeastNeighbours(theirs, minCaptures);
@@ -253,14 +258,14 @@ public final class Position {
         int n = 0;
         for (long t = noisy & Bitboards.expand1(mine); t != 0; t &= t - 1) {
             int to = Long.numberOfTrailingZeros(t);
-            scores[n] = 2 * Long.bitCount(Bitboards.neighbours(to) & theirs) + 1;
+            keys[n] = ((2 * Long.bitCount(Bitboards.neighbours(to) & theirs) + 1) << KEY_SHIFT) | (KEY_INDEX_MASK - n);
             out[n++] = Move.clone(to);
         }
         for (long p = mine & Bitboards.expand2(noisy); p != 0; p &= p - 1) {
             int from = Long.numberOfTrailingZeros(p);
             for (long t = Bitboards.ring2(from) & noisy; t != 0; t &= t - 1) {
                 int to = Long.numberOfTrailingZeros(t);
-                scores[n] = 2 * Long.bitCount(Bitboards.neighbours(to) & theirs);
+                keys[n] = ((2 * Long.bitCount(Bitboards.neighbours(to) & theirs)) << KEY_SHIFT) | (KEY_INDEX_MASK - n);
                 out[n++] = Move.jump(from, to);
             }
         }

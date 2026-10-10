@@ -7,6 +7,7 @@ final class Zobrist {
     /** {@code PIECE[side][square]}. */
     private static final long[][] PIECE = new long[2][Bitboards.SQUARES];
     private static final long[] WALL = new long[Bitboards.SQUARES];
+    private static final long[] FLIP = new long[Bitboards.SQUARES];
     static final long SIDE_TO_MOVE;
 
     static {
@@ -20,6 +21,9 @@ final class Zobrist {
             WALL[sq] = rnd.nextLong();
         }
         SIDE_TO_MOVE = rnd.nextLong();
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            FLIP[sq] = PIECE[0][sq] ^ PIECE[1][sq];
+        }
     }
 
     private Zobrist() {}
@@ -30,7 +34,7 @@ final class Zobrist {
 
     /** Key that flips a square between the two sides, for converted pieces. */
     static long flip(int sq) {
-        return PIECE[0][sq] ^ PIECE[1][sq];
+        return FLIP[sq];
     }
 
     /** Hash of a position computed from scratch. Equal to the incrementally maintained hash. */

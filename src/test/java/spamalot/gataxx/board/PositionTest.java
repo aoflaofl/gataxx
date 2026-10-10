@@ -204,7 +204,8 @@ class PositionTest {
                     for (int i = 0; i < got; i++) {
                         assertEquals(caps[i], moves[i]);
                         long converted = Bitboards.expand1(1L << Move.to(moves[i])) & p.pieces(1 - p.sideToMove());
-                        assertEquals(2 * Long.bitCount(converted) + (Move.isClone(moves[i]) ? 1 : 0), scores[i]);
+                        assertEquals(2 * Long.bitCount(converted) + (Move.isClone(moves[i]) ? 1 : 0), scores[i] >> Position.KEY_SHIFT);
+                        assertEquals(Position.KEY_INDEX_MASK - i, scores[i] & Position.KEY_INDEX_MASK);
                         assertEquals(Long.bitCount(converted), p.captureCount(moves[i]));
                         checked++;
                     }

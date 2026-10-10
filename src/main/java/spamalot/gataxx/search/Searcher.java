@@ -391,7 +391,16 @@ public final class Searcher {
         int[] scores = scoreBuf[ply];
         int k = pos.generateScoredCaptureMoves(moves, scores, qMinCaptures);
         for (int i = 0; i < k; i++) {
-            swap(moves, scores, i, bestIndex(scores, i, k));
+            // Keys hold score and reversed index; the maximum (a vectorisable int reduction) is the first best-scoring move.
+            int best = scores[i];
+            for (int j = i + 1; j < k; j++) {
+                best = Math.max(best, scores[j]);
+            }
+            int bi = Position.KEY_INDEX_MASK - (best & Position.KEY_INDEX_MASK);
+            int moved = moves[i];
+            moves[i] = moves[bi];
+            moves[bi] = moved;
+            scores[bi] = (scores[i] & ~Position.KEY_INDEX_MASK) | (Position.KEY_INDEX_MASK - bi);
             int score = -quiesce(pos.makeMove(moves[i]), -beta, -alpha, ply + 1, qply + 1);
             if (aborted) {
                 return 0;
