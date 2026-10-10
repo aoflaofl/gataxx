@@ -67,9 +67,13 @@ class UaiEngineTest {
         assertEquals("option name NullR type spin default 2 min 1 max 6", out.get(28));
         assertEquals("option name NullMinEmpties type spin default 12 min 0 max 49", out.get(29));
         assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(30));
-        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(31));
-        assertEquals("uaiok", out.get(32));
-        assertEquals(33, out.size());
+        assertEquals("option name QuiesceMaxPly type spin default 5 min 0 max 16", out.get(31));
+        assertEquals("option name QuiesceJumpCut type spin default 1 min 0 max 2", out.get(32));
+        assertEquals("option name QuiesceJumpCutFromPly type spin default 0 min 0 max 16", out.get(33));
+        assertEquals("option name JumpCut type spin default 0 min 0 max 2", out.get(34));
+        assertEquals("option name JumpCutMinEmpties type spin default 12 min 0 max 49", out.get(35));
+        assertEquals("uaiok", out.get(36));
+        assertEquals(37, out.size());
     }
 
     private static int lastHashfull(List<String> out) {

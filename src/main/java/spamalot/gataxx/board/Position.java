@@ -193,6 +193,38 @@ public final class Position {
      * the game is over. {@code out} must hold at least {@link #MAX_MOVES} entries.
      */
     public int generateMoves(int[] out) {
+        return generateMoves(out, JUMPS_ALL);
+    }
+
+    /** {@link #generateMoves(int[], int)} / {@link #generateScoredCaptureMoves} mode: generate every jump. */
+    public static final int JUMPS_ALL = 0;
+    /** Mode: leave out every jump to a square that a clone could also reach. */
+    public static final int JUMPS_CUT_ALL_DOMINATED = 1;
+    /** Mode: leave out such a jump only if the stone that jumps cannot be attacked next move. */
+    public static final int JUMPS_CUT_FROM_SAFE_ORIGINS = 2;
+
+    /**
+     * Stones the opponent could capture next move: those adjacent to an empty square the opponent can land on. A jump to a
+     * square a clone could also reach is only dominated by that clone if the origin stone is not one of these; otherwise
+     * the jump saves the stone and the clone leaves it to be captured.
+     */
+    private long attackableStones() {
+        long theirLanding = Bitboards.expand2(pieces(1 - sideToMove)) & empty();
+        return pieces(sideToMove) & Bitboards.expand1(theirLanding);
+    }
+
+    /** Origins whose jumps are never cut under {@code mode}. */
+    private long exemptOrigins(int mode) {
+        return mode == JUMPS_CUT_FROM_SAFE_ORIGINS ? attackableStones() : 0;
+    }
+
+    /**
+     * As {@link #generateMoves(int[])}, optionally leaving out jumps to squares a clone could also reach, which convert the
+     * same pieces as the clone but leave the origin empty. The clone is at least as good unless the origin stone can be
+     * attacked (see {@link #JUMPS_CUT_FROM_SAFE_ORIGINS}) or filling the board ends a game the mover is losing, which is
+     * why callers keep the jumps in the endgame.
+     */
+    public int generateMoves(int[] out, int jumpMode) {
         if (isGameOver()) {
             return 0;
         }
@@ -204,9 +236,15 @@ public final class Position {
         for (long t = clones; t != 0; t &= t - 1) {
             out[n++] = Move.clone(Long.numberOfTrailingZeros(t));
         }
+        long cut = jumpMode == JUMPS_ALL ? 0 : clones;
+        long exempt = jumpMode == JUMPS_ALL ? 0 : exemptOrigins(jumpMode);
         for (long p = mine; p != 0; p &= p - 1) {
             int from = Long.numberOfTrailingZeros(p);
-            for (long t = Bitboards.ring2(from) & empty; t != 0; t &= t - 1) {
+            long targets = Bitboards.ring2(from) & empty;
+            if ((exempt >>> from & 1) == 0) {
+                targets &= ~cut;
+            }
+            for (long t = targets; t != 0; t &= t - 1) {
                 out[n++] = Move.jump(from, Long.numberOfTrailingZeros(t));
             }
         }
@@ -247,8 +285,9 @@ public final class Position {
      * Like {@link #generateCaptureMoves} for a position the caller has already found not to be over, and with an ordering key
      * per move in {@code keys}: the score (twice the number of enemy pieces the move converts, plus one for a clone) shifted left
      * by {@link #KEY_SHIFT}, plus {@code KEY_INDEX_MASK - index}, so that the maximum key is the first move with the best score.
+     * {@code jumpMode} is one of the {@code JUMPS_} constants.
      */
-    public int generateScoredCaptureMoves(int[] out, int[] keys, int minCaptures) {
+    public int generateScoredCaptureMoves(int[] out, int[] keys, int minCaptures, int jumpMode) {
         long mine = pieces(sideToMove);
         long theirs = pieces(1 - sideToMove);
         long noisy = Bitboards.expand2(mine) & empty() & Bitboards.atLeastNeighbours(theirs, minCaptures);
@@ -261,9 +300,16 @@ public final class Position {
             keys[n] = ((2 * Long.bitCount(Bitboards.neighbours(to) & theirs) + 1) << KEY_SHIFT) | (KEY_INDEX_MASK - n);
             out[n++] = Move.clone(to);
         }
+        // A jump to a square some stone of ours is adjacent to is dominated by the clone to that square (see generateMoves).
+        long cut = jumpMode == JUMPS_ALL ? 0 : Bitboards.expand1(mine);
+        long exempt = jumpMode == JUMPS_ALL ? 0 : exemptOrigins(jumpMode);
         for (long p = mine & Bitboards.expand2(noisy); p != 0; p &= p - 1) {
             int from = Long.numberOfTrailingZeros(p);
-            for (long t = Bitboards.ring2(from) & noisy; t != 0; t &= t - 1) {
+            long targets = Bitboards.ring2(from) & noisy;
+            if ((exempt >>> from & 1) == 0) {
+                targets &= ~cut;
+            }
+            for (long t = targets; t != 0; t &= t - 1) {
                 int to = Long.numberOfTrailingZeros(t);
                 keys[n] = ((2 * Long.bitCount(Bitboards.neighbours(to) & theirs)) << KEY_SHIFT) | (KEY_INDEX_MASK - n);
                 out[n++] = Move.jump(from, to);

@@ -41,7 +41,7 @@ public final class UaiEngine {
     /** Weight of the cohesion feature, in 1/64 piece (negative: favour spread-out groups). Tuned by self-play. */
     public static final int DEFAULT_EVAL_COHESION = -3;
     public static final int DEFAULT_QUIESCE_MIN_CAPTURES = 3;
-    public static final int DEFAULT_QUIESCE_MAX_PLY = 4;
+    public static final int DEFAULT_QUIESCE_MAX_PLY = 5;
 
     private final BufferedReader in;
     private final PrintWriter out;
@@ -74,6 +74,10 @@ public final class UaiEngine {
     private int nullMinEmpties = 12;
     private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
+    private int quiesceJumpCut = 1;
+    private int quiesceJumpCutFromPly;
+    private int jumpCut;
+    private int jumpCutMinEmpties = 12;
     private String patternFile = "";
     private int patternBlend = 50;
     private int patternMargin = 32;
@@ -156,6 +160,10 @@ public final class UaiEngine {
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
+                    send("option name QuiesceJumpCut type spin default 1 min 0 max 2");
+                    send("option name QuiesceJumpCutFromPly type spin default 0 min 0 max 16");
+                    send("option name JumpCut type spin default 0 min 0 max 2");
+                    send("option name JumpCutMinEmpties type spin default 12 min 0 max 49");
                     send("uaiok");
                 }
                 case "isready" -> send("readyok");
@@ -272,6 +280,14 @@ public final class UaiEngine {
             evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
+        } else if (name.equalsIgnoreCase("QuiesceJumpCut")) {
+            quiesceJumpCut = spinValue(name, value, 0, 2);
+        } else if (name.equalsIgnoreCase("QuiesceJumpCutFromPly")) {
+            quiesceJumpCutFromPly = spinValue(name, value, 0, 16);
+        } else if (name.equalsIgnoreCase("JumpCut")) {
+            jumpCut = spinValue(name, value, 0, 2);
+        } else if (name.equalsIgnoreCase("JumpCutMinEmpties")) {
+            jumpCutMinEmpties = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
             quiesceMaxPly = spinValue(name, value, 0, Searcher.MAX_QUIESCENCE_PLY);
         } else {
@@ -387,6 +403,8 @@ public final class UaiEngine {
     private Searcher newSearcher(Evaluator evaluator) {
         Searcher s = new Searcher(evaluator, tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
+        s.setQuiescenceJumpMode(quiesceJumpCut, quiesceJumpCutFromPly);
+        s.setJumpMode(jumpCut, jumpCutMinEmpties);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
         s.setLmr(lmr == 1, lmrMoves, lmrMinDepth);

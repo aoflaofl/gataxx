@@ -545,6 +545,37 @@ side, no illegal moves or timeouts):
 Machine: Intel Core Ultra 7 265 (20 cores), so none of these runs oversubscribed it (2, 4 and 8 threads with 6, 4 and 2
 concurrent games). All earlier results in this log are single-threaded.
 
+## Dominated jumps: a cut in quiescence (`QuiesceJumpCut`) that fails in the main search (`JumpCut`)
+
+A jump to a square that a clone could also reach converts the same pieces as that clone but leaves its origin empty, so the clone
+looks at least as good. Quiescence search generated every such jump separately for every origin two squares away, so they
+dominated its move lists. Cutting them (`Position.generateScoredCaptureMoves` mode `JUMPS_CUT_ALL_DOMINATED`):
+
+| Configuration | bench 9 nodes | time | result (timed 50 ms) |
+|---|---|---|---|
+| 1.4.0 | 224.6M | 17.1 s | |
+| cut in quiescence only | 81.6M | 6.0 s | **+88.1 +/- 20.3** vs 1.4.0 behaviour (1200 games, seed 6060) |
+| cut also in the main search, 12+ empties | 21.3M | 1.7 s | **-75.3 +/- 20.1** vs the quiescence cut alone (1200 games) |
+| main-search cut only from origins that cannot be attacked | 206M-224M | | nearly nothing is cut: almost every stone borders an empty square the opponent can reach |
+
+The main-search cut fails because dominance is false when the origin stone is attackable: the clone leaves it to be captured
+(a swing of two) while the jump saves it. Quiescence tolerates the loss (it only resolves captures from a stand-pat score), and
+the main search does not. So the main search keeps every jump (`JumpCut` 0, kept as an option for experiments).
+
+With the cut on, the smaller quiescence tree makes deeper quiescence affordable; the best depth is odd:
+
+| Change vs the cut at `QuiesceMaxPly` 4 (timed 50 ms, +/- 17-20) | Result |
+|---|---|
+| `QuiesceMaxPly` 6 (seed 9191, 1200 games / seed 3535, 1600 games) | +24.4 / +26.5 |
+| `QuiesceMaxPly` 8 (seed 9191) | +8.1 |
+| `QuiesceMaxPly` 5 (seed 3535, 1600 games) | **+58.7** |
+| `QuiesceMinCaptures` 2 | -18.0 |
+| cut only from quiescence ply 1 | -8.4 |
+
+Against `QuiesceMaxPly` 5 (seed 5252, 1200 games): 3 **-58.5**, 6 **-40.7**, 7 -10.4. Adopted: `QuiesceJumpCut` 1 and
+`QuiesceMaxPly` 5. The parity effect (5 beats both 4 and 6) is probably who makes the last capture before the leaf
+evaluation. Bench 9 with the new defaults: 149.9M nodes in 11.6 s, scoresum 413.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

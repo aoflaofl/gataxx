@@ -47,6 +47,10 @@ public final class Searcher {
     private boolean exactDepthHitsOnly;
     private int qMinCaptures;
     private int qMaxPly;
+    private int qJumpMode = Position.JUMPS_ALL;
+    private int qJumpCutFromPly;
+    private int jumpMode = Position.JUMPS_ALL;
+    private int jumpCutMinEmpties;
     private boolean usePvs;
     private boolean useFutility;
     private int futilityMargin = 48;
@@ -89,6 +93,45 @@ public final class Searcher {
         }
         this.qMinCaptures = minCaptures;
         this.qMaxPly = maxPly;
+    }
+
+    /**
+     * Which jumps quiescence search tries: one of the {@code Position.JUMPS_} modes. A jump to a square a clone could also
+     * reach converts the same pieces but leaves the origin empty, so cutting it is cheap and, in quiescence, nearly free.
+     */
+    public void setQuiescenceJumpMode(int mode) {
+        setQuiescenceJumpMode(mode, 0);
+    }
+
+    /** As {@link #setQuiescenceJumpMode(int)}, but the cut applies only from quiescence ply {@code fromPly} (0 = all). */
+    public void setQuiescenceJumpMode(int mode, int fromPly) {
+        checkJumpMode(mode);
+        this.qJumpMode = mode;
+        this.qJumpCutFromPly = Math.max(0, fromPly);
+    }
+
+    /**
+     * The same cut in the main search, applied only while at least {@code minEmpties} squares are empty (near the end of a
+     * game a jump can be the only way to avoid filling the board in a lost position).
+     */
+    public void setJumpMode(int mode, int minEmpties) {
+        checkJumpMode(mode);
+        if (minEmpties < 0) {
+            throw new IllegalArgumentException("minEmpties must not be negative");
+        }
+        this.jumpMode = mode;
+        this.jumpCutMinEmpties = minEmpties;
+    }
+
+    private static void checkJumpMode(int mode) {
+        if (mode < Position.JUMPS_ALL || mode > Position.JUMPS_CUT_FROM_SAFE_ORIGINS) {
+            throw new IllegalArgumentException("unknown jump mode " + mode);
+        }
+    }
+
+    private int jumpModeFor(Position pos) {
+        return jumpMode != Position.JUMPS_ALL && Long.bitCount(pos.empty()) >= jumpCutMinEmpties
+                ? jumpMode : Position.JUMPS_ALL;
     }
 
     /**
@@ -227,7 +270,7 @@ public final class Searcher {
             tt.newSearch();
         }
         int[] rootMoves = moveBuf[0];
-        int n = root.generateMoves(rootMoves);
+        int n = root.generateMoves(rootMoves, jumpModeFor(root));
         if (n == 0) {
             return new SearchResult(Move.NONE, terminalScore(root, 0), 0, 0, 0, new int[0]);
         }
@@ -331,7 +374,7 @@ public final class Searcher {
         }
 
         int[] moves = moveBuf[ply];
-        int n = pos.generateMoves(moves);
+        int n = pos.generateMoves(moves, jumpModeFor(pos));
         if (n == 0) {
             return terminalScore(pos, ply);
         }
@@ -426,7 +469,8 @@ public final class Searcher {
 
         int[] moves = moveBuf[ply];
         int[] scores = scoreBuf[ply];
-        int k = pos.generateScoredCaptureMoves(moves, scores, qMinCaptures);
+        int k = pos.generateScoredCaptureMoves(moves, scores, qMinCaptures,
+                qply >= qJumpCutFromPly ? qJumpMode : Position.JUMPS_ALL);
         for (int i = 0; i < k; i++) {
             // Keys hold score and reversed index; the maximum (a vectorisable int reduction) is the first best-scoring move.
             int best = scores[i];

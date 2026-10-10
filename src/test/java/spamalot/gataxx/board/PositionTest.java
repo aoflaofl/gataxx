@@ -199,7 +199,7 @@ class PositionTest {
             for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
                 for (int min = 0; min <= 5; min++) {
                     int want = p.generateCaptureMoves(caps, min);
-                    int got = p.generateScoredCaptureMoves(moves, scores, min);
+                    int got = p.generateScoredCaptureMoves(moves, scores, min, Position.JUMPS_ALL);
                     assertEquals(want, got);
                     for (int i = 0; i < got; i++) {
                         assertEquals(caps[i], moves[i]);
@@ -234,6 +234,69 @@ class PositionTest {
                 p = p.makeMove(all[rnd.nextInt(n)]);
             }
         }
+    }
+
+    /** Stones the opponent could capture next move, computed independently of the production code. */
+    private static long attackable(Position p) {
+        long theirs = p.pieces(1 - p.sideToMove());
+        long landing = Bitboards.expand2(theirs) & p.empty();
+        return p.pieces(p.sideToMove()) & Bitboards.expand1(landing);
+    }
+
+    private static boolean cutBy(Position p, int mode, int move) {
+        if (move == Move.PASS || Move.isClone(move) || mode == Position.JUMPS_ALL) {
+            return false;
+        }
+        boolean cloneReachable = (Bitboards.expand1(p.pieces(p.sideToMove())) & (1L << Move.to(move))) != 0;
+        boolean exempt = mode == Position.JUMPS_CUT_FROM_SAFE_ORIGINS && (attackable(p) & (1L << Move.from(move))) != 0;
+        return cloneReachable && !exempt;
+    }
+
+    @Test
+    void jumpModesRemoveExactlyTheDominatedJumps() {
+        java.util.Random rnd = new java.util.Random(808);
+        int[] all = new int[Position.MAX_MOVES];
+        int[] cut = new int[Position.MAX_MOVES];
+        int[] full = new int[Position.MAX_MOVES];
+        int[] fullKeys = new int[Position.MAX_MOVES];
+        int[] cutKeys = new int[Position.MAX_MOVES];
+        int removed = 0;
+        for (int game = 0; game < 80; game++) {
+            Position p = game % 3 == 0 ? Position.fromFen("x5o/7/2-1-2/3-3/2-1-2/7/o5x x 0 1") : Position.startPos();
+            for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
+                int nf = p.generateMoves(all, Position.JUMPS_ALL);
+                assertEquals(p.generateMoves(new int[Position.MAX_MOVES]), nf);
+                for (int mode = 1; mode <= 2; mode++) {
+                    int nc = p.generateMoves(cut, mode);
+                    int j = 0;
+                    for (int i = 0; i < nf; i++) {
+                        if (cutBy(p, mode, all[i])) {
+                            removed++;
+                            continue;
+                        }
+                        assertEquals(all[i], cut[j++]);
+                    }
+                    assertEquals(j, nc);
+                    assertTrue(nc > 0, "cutting never leaves a playable position without moves");
+                    for (int min = 1; min <= 4; min++) {
+                        int mf = p.generateScoredCaptureMoves(full, fullKeys, min, Position.JUMPS_ALL);
+                        int mc = p.generateScoredCaptureMoves(cut, cutKeys, min, mode);
+                        int k = 0;
+                        for (int i = 0; i < mf; i++) {
+                            if (cutBy(p, mode, full[i])) {
+                                continue;
+                            }
+                            assertEquals(full[i], cut[k]);
+                            assertEquals(fullKeys[i] >> Position.KEY_SHIFT, cutKeys[k] >> Position.KEY_SHIFT);
+                            k++;
+                        }
+                        assertEquals(k, mc);
+                    }
+                }
+                p = p.makeMove(all[rnd.nextInt(nf)]);
+            }
+        }
+        assertTrue(removed > 1000, "removed " + removed);
     }
 
     @Test
