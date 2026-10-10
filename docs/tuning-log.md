@@ -633,6 +633,32 @@ options (default off) because the nodes they save were not worth strength.
 Validation of the new defaults (`JumpCut` 3) against the published 1.5.0 jar, timed 50 ms, one thread each, 2000 games, seed
 1212: **+1068 =1 -931, +23.8 +/- 15.3 Elo**. Bench 9: 130.4M nodes, scoresum 411. The suite (225 tests) passes.
 
+## Re-check after the main-search jump cut (nothing changed)
+
+Each setting against the current defaults (`JumpCut` 3, `QuiesceJumpCut` 1, `QuiesceMaxPly` 5), timed 50 ms, 1200 games, seed
+3131 (+/- 20):
+
+| Setting | Result |
+|---|---|
+| `LmrMoves` 2 | +12.7 |
+| `LmrMinDepth` 3 | +9.8 |
+| `LmrDeepMoves` 4 | -2.9 |
+| `PatternMargin` 48 | -5.2 |
+| `JumpCutMinEmpties` 8 / 16 | +5.2 / +6.9 |
+| `QuiesceMaxPly` 4 / 6 | **-51.6** / **-33.7** |
+
+Everything but quiescence depth is within noise; depth 5 beats both neighbours again on the new tree. The defaults stay.
+
+Lazy SMP against 1 thread of the same build at equal time per move (50 ms, seed 5757):
+
+| Threads | games | result |
+|---|---|---|
+| 2 | 800 | +451 -349, +44.5 +/- 24.3 |
+| 4 | 800 | +518 -282, **+105.6 +/- 25.2** |
+| 8 | 400 | +276 -124, **+139.0 +/- 36.8** |
+
+The gains (1.4.0: +29, +105, +125) survive the 40% smaller tree.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
