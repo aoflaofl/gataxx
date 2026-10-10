@@ -25,8 +25,8 @@ public final class TranspositionTable {
     private static final int MOVE_BITS = 14;
     private static final long MOVE_MASK = (1L << MOVE_BITS) - 1;
 
-    private final long[] keys;
-    private final long[] data;
+    /** Slot {@code i} is {@code slots[2 * i]} (key) and {@code slots[2 * i + 1]} (data), adjacent so a probe is one cache line. */
+    private final long[] slots;
     private final int mask;
     private int age;
 
@@ -43,18 +43,16 @@ public final class TranspositionTable {
     public TranspositionTable(int megabytes) {
         long wanted = Math.max(1024, (long) megabytes * 1024 * 1024 / ENTRY_BYTES);
         int entries = (int) Math.min(1L << 30, Long.highestOneBit(wanted));
-        keys = new long[entries];
-        data = new long[entries];
+        slots = new long[2 * entries];
         mask = entries - 1;
     }
 
     public int capacity() {
-        return keys.length;
+        return slots.length / 2;
     }
 
     public void clear() {
-        Arrays.fill(keys, 0);
-        Arrays.fill(data, 0);
+        Arrays.fill(slots, 0);
         age = 0;
     }
 
@@ -65,9 +63,9 @@ public final class TranspositionTable {
 
     /** Looks up {@code hash}; fills and returns {@code out}. */
     public Entry probe(long hash, Entry out) {
-        int i = (int) hash & mask;
-        long d = data[i];
-        if (keys[i] == hash && (d >>> 22 & 3) != BOUND_NONE) {
+        int i = ((int) hash & mask) << 1;
+        long d = slots[i + 1];
+        if (slots[i] == hash && (d >>> 22 & 3) != BOUND_NONE) {
             out.found = true;
             int m = (int) (d & MOVE_MASK);
             out.move = m == 0 ? Move.NONE : m - 1;
@@ -86,9 +84,9 @@ public final class TranspositionTable {
      * search, or is not deeper than the new result.
      */
     public void store(long hash, int depth, int bound, int score, int move) {
-        int i = (int) hash & mask;
-        long old = data[i];
-        boolean sameKey = keys[i] == hash;
+        int i = ((int) hash & mask) << 1;
+        long old = slots[i + 1];
+        boolean sameKey = slots[i] == hash;
         int oldBound = (int) (old >>> 22 & 3);
         if (!sameKey && oldBound != BOUND_NONE
                 && (int) (old >>> 24 & 0xFF) == age
@@ -101,8 +99,8 @@ public final class TranspositionTable {
             keepMove = m == 0 ? Move.NONE : m - 1;
         }
         long m = keepMove == Move.NONE ? 0 : keepMove + 1;
-        keys[i] = hash;
-        data[i] = m
+        slots[i] = hash;
+        slots[i + 1] = m
                 | ((long) Math.min(depth, 255) << MOVE_BITS)
                 | ((long) bound << 22)
                 | ((long) age << 24)
@@ -111,10 +109,10 @@ public final class TranspositionTable {
 
     /** Fraction of slots in use, in permille (the UCI {@code hashfull} convention). */
     public int hashfull() {
-        int sample = Math.min(1000, keys.length);
+        int sample = Math.min(1000, slots.length / 2);
         int used = 0;
         for (int i = 0; i < sample; i++) {
-            if ((data[i] >>> 22 & 3) != BOUND_NONE) {
+            if ((slots[2 * i + 1] >>> 22 & 3) != BOUND_NONE) {
                 used++;
             }
         }
