@@ -37,6 +37,10 @@ public final class Searcher {
     private volatile boolean stopRequested;
     private boolean aborted;
     private long nodes;
+    /** {@link #nodes} as of the last periodic check, readable from other threads. */
+    private volatile long publishedNodes;
+    private boolean helper;
+    private int helperId;
     private long deadlineNanos;
     private long maxNodes;
     private int[] prevPv = new int[0];
@@ -172,6 +176,30 @@ public final class Searcher {
         this.exactDepthHitsOnly = exact;
     }
 
+    /**
+     * Marks this searcher as helper number {@code id} (1, 2, ...) in a shared-table parallel search: it leaves the table's age
+     * to the main searcher and skips some iterations of the iterative deepening, in a pattern that differs between helpers, so
+     * that the threads work on different depths at the same moment and the main thread finds their results in the table.
+     */
+    void asHelper(int id) {
+        this.helper = true;
+        this.helperId = id;
+    }
+
+    // Skip pattern of the iterative-deepening helpers (the scheme popularised by Stockfish's Lazy SMP).
+    private static final int[] SKIP_SIZE = {1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
+    private static final int[] SKIP_PHASE = {0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7};
+
+    private boolean skipsDepth(int depth) {
+        int i = (helperId - 1) % SKIP_SIZE.length;
+        return ((depth + SKIP_PHASE[i]) / SKIP_SIZE[i]) % 2 != 0;
+    }
+
+    /** Nodes searched as of the last periodic check; safe to read from another thread while the search runs. */
+    public long publishedNodes() {
+        return publishedNodes;
+    }
+
     /** Asks the running (or about-to-run) search to finish as soon as possible. */
     public void stop() {
         stopRequested = true;
@@ -195,7 +223,7 @@ public final class Searcher {
         long softNanos = limits.softMs() > 0 ? limits.softMs() * 1_000_000L : Long.MAX_VALUE;
         int maxDepth = limits.maxDepth() > 0 ? Math.min(limits.maxDepth(), MAX_DEPTH) : MAX_DEPTH;
 
-        if (tt != null) {
+        if (tt != null && !helper) {
             tt.newSearch();
         }
         int[] rootMoves = moveBuf[0];
@@ -209,6 +237,9 @@ public final class Searcher {
         for (int depth = 1; depth <= maxDepth; depth++) {
             if (shouldAbort()) {
                 break;
+            }
+            if (helper && skipsDepth(depth)) {
+                continue;
             }
             int score = negamax(root, depth, -INF, INF, 0, true, true);
             if (aborted) {
@@ -240,8 +271,11 @@ public final class Searcher {
         }
         pvLen[ply] = 0;
         nodes++;
-        if ((nodes & NODE_CHECK_MASK) == 0 && shouldAbort()) {
-            aborted = true;
+        if ((nodes & NODE_CHECK_MASK) == 0) {
+            publishedNodes = nodes;
+            if (shouldAbort()) {
+                aborted = true;
+            }
         }
         if (aborted) {
             return 0;
@@ -367,8 +401,11 @@ public final class Searcher {
     private int quiesce(Position pos, int alpha, int beta, int ply, int qply) {
         pvLen[ply] = 0;
         nodes++;
-        if ((nodes & NODE_CHECK_MASK) == 0 && shouldAbort()) {
-            aborted = true;
+        if ((nodes & NODE_CHECK_MASK) == 0) {
+            publishedNodes = nodes;
+            if (shouldAbort()) {
+                aborted = true;
+            }
         }
         if (aborted) {
             return 0;

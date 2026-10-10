@@ -14,6 +14,7 @@ import spamalot.gataxx.eval.FeatureEvaluator;
 import spamalot.gataxx.eval.PatternEvaluator;
 import spamalot.gataxx.eval.FeatureEvaluator.Weights;
 import spamalot.gataxx.search.BenchPositions;
+import spamalot.gataxx.search.ParallelSearch;
 import spamalot.gataxx.search.SearchLimits;
 import spamalot.gataxx.search.SearchResult;
 import spamalot.gataxx.search.Searcher;
@@ -76,8 +77,9 @@ public final class UaiEngine {
     private String patternFile = "";
     private int patternBlend = 50;
     private int patternMargin = 32;
+    private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
-    private Searcher searcher;
+    private ParallelSearch searcher;
     private Thread searchThread;
     private boolean searchIsInfinite;
 
@@ -143,6 +145,7 @@ public final class UaiEngine {
                     send("option name PatternFile type string default <empty>");
                     send("option name PatternBlend type spin default 50 min 0 max 100");
                     send("option name PatternMargin type spin default 32 min 0 max 2000");
+                    send("option name Threads type spin default 1 min 1 max 64");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
                     send("option name LmrMinDepth type spin default 4 min 2 max 20");
@@ -247,6 +250,8 @@ public final class UaiEngine {
             patternEvaluatorFor(new FeatureEvaluator(new Weights(FeatureEvaluator.SCALE, 0, 0, 0, 0)), 0.5); // validates the file now
         } else if (name.equalsIgnoreCase("PatternBlend")) {
             patternBlend = spinValue(name, value, 0, 100);
+        } else if (name.equalsIgnoreCase("Threads")) {
+            threads = spinValue(name, value, 1, 64);
         } else if (name.equalsIgnoreCase("PatternMargin")) {
             patternMargin = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("Lmr")) {
@@ -323,7 +328,13 @@ public final class UaiEngine {
     private void go(String[] tokens) {
         SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
         Position root = position;
-        Searcher s = newSearcher();
+        Evaluator evaluator = newEvaluator();
+        Searcher main = newSearcher(evaluator);
+        List<Searcher> helpers = new ArrayList<>();
+        for (int i = 1; i < threads; i++) {
+            helpers.add(newSearcher(evaluator));
+        }
+        ParallelSearch s = new ParallelSearch(main, helpers);
         searcher = s;
         searchIsInfinite = limits.equals(SearchLimits.infinite());
         searchThread = new Thread(() -> {
@@ -356,8 +367,8 @@ public final class UaiEngine {
         }
     }
 
-    /** A searcher configured with the current options and sharing the current table. */
-    private Searcher newSearcher() {
+    /** The evaluation built from the current options; stateless, so every search thread can share one. */
+    private Evaluator newEvaluator() {
         Evaluator evaluator = new FeatureEvaluator(
                 new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
                         evalReach, evalTerritory, evalEdge, tempo, evalFade,
@@ -365,6 +376,15 @@ public final class UaiEngine {
         if (patternBlend > 0) {
             evaluator = patternEvaluatorFor(evaluator, patternBlend / 100.0);
         }
+        return evaluator;
+    }
+
+    /** A searcher configured with the current options and sharing the current table. */
+    private Searcher newSearcher() {
+        return newSearcher(newEvaluator());
+    }
+
+    private Searcher newSearcher(Evaluator evaluator) {
         Searcher s = new Searcher(evaluator, tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         s.setPvs(pvs == 1);

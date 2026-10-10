@@ -58,17 +58,18 @@ class UaiEngineTest {
         assertEquals("option name PatternFile type string default <empty>", out.get(19));
         assertEquals("option name PatternBlend type spin default 50 min 0 max 100", out.get(20));
         assertEquals("option name PatternMargin type spin default 32 min 0 max 2000", out.get(21));
-        assertEquals("option name Lmr type spin default 1 min 0 max 1", out.get(22));
-        assertEquals("option name LmrMoves type spin default 3 min 1 max 40", out.get(23));
-        assertEquals("option name LmrMinDepth type spin default 4 min 2 max 20", out.get(24));
-        assertEquals("option name LmrDeepMoves type spin default 6 min 0 max 40", out.get(25));
-        assertEquals("option name NullMove type spin default 0 min 0 max 1", out.get(26));
-        assertEquals("option name NullR type spin default 2 min 1 max 6", out.get(27));
-        assertEquals("option name NullMinEmpties type spin default 12 min 0 max 49", out.get(28));
-        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(29));
-        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(30));
-        assertEquals("uaiok", out.get(31));
-        assertEquals(32, out.size());
+        assertEquals("option name Threads type spin default 1 min 1 max 64", out.get(22));
+        assertEquals("option name Lmr type spin default 1 min 0 max 1", out.get(23));
+        assertEquals("option name LmrMoves type spin default 3 min 1 max 40", out.get(24));
+        assertEquals("option name LmrMinDepth type spin default 4 min 2 max 20", out.get(25));
+        assertEquals("option name LmrDeepMoves type spin default 6 min 0 max 40", out.get(26));
+        assertEquals("option name NullMove type spin default 0 min 0 max 1", out.get(27));
+        assertEquals("option name NullR type spin default 2 min 1 max 6", out.get(28));
+        assertEquals("option name NullMinEmpties type spin default 12 min 0 max 49", out.get(29));
+        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(30));
+        assertEquals("option name QuiesceMaxPly type spin default 4 min 0 max 16", out.get(31));
+        assertEquals("uaiok", out.get(32));
+        assertEquals(33, out.size());
     }
 
     private static int lastHashfull(List<String> out) {

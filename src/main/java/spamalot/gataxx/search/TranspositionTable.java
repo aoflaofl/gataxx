@@ -4,11 +4,12 @@ import java.util.Arrays;
 import spamalot.gataxx.board.Move;
 
 /**
- * Fixed-size hash table of search results keyed by Zobrist hash. Not thread-safe: one search at a
- * time, which is how the engine uses it.
+ * Fixed-size hash table of search results keyed by Zobrist hash. Safe to share between search threads without locks: the
+ * key word is stored XORed with the data word, so a read that mixes two concurrent writes fails the key check and counts
+ * as a miss instead of returning garbage.
  *
- * <p>Each entry is 16 bytes: the full 64-bit key (to reject index collisions) and one packed word
- * holding move, depth, bound type, age and score.
+ * <p>Each entry is 16 bytes: the key (to reject index collisions) and one packed word holding move, depth, bound type,
+ * age and score.
  */
 public final class TranspositionTable {
     public static final int BOUND_NONE = 0;
@@ -65,7 +66,7 @@ public final class TranspositionTable {
     public Entry probe(long hash, Entry out) {
         int i = ((int) hash & mask) << 1;
         long d = slots[i + 1];
-        if (slots[i] == hash && (d >>> 22 & 3) != BOUND_NONE) {
+        if ((slots[i] ^ d) == hash && (d >>> 22 & 3) != BOUND_NONE) {
             out.found = true;
             int m = (int) (d & MOVE_MASK);
             out.move = m == 0 ? Move.NONE : m - 1;
@@ -86,7 +87,7 @@ public final class TranspositionTable {
     public void store(long hash, int depth, int bound, int score, int move) {
         int i = ((int) hash & mask) << 1;
         long old = slots[i + 1];
-        boolean sameKey = slots[i] == hash;
+        boolean sameKey = (slots[i] ^ old) == hash;
         int oldBound = (int) (old >>> 22 & 3);
         if (!sameKey && oldBound != BOUND_NONE
                 && (int) (old >>> 24 & 0xFF) == age
@@ -99,12 +100,13 @@ public final class TranspositionTable {
             keepMove = m == 0 ? Move.NONE : m - 1;
         }
         long m = keepMove == Move.NONE ? 0 : keepMove + 1;
-        slots[i] = hash;
-        slots[i + 1] = m
+        long packed = m
                 | ((long) Math.min(depth, 255) << MOVE_BITS)
                 | ((long) bound << 22)
                 | ((long) age << 24)
                 | ((long) (score & 0xFFFF) << 32);
+        slots[i] = hash ^ packed;
+        slots[i + 1] = packed;
     }
 
     /** Fraction of slots in use, in permille (the UCI {@code hashfull} convention). */
