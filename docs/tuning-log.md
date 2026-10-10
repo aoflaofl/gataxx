@@ -468,6 +468,23 @@ same jar with `PatternBlend=0`, `go movetime 50`, 800 games, seed 2024: **+470 =
 changed with the default evaluation (depth 9: 224,580,569 nodes, scoresum 592, 8.5M nodes/s). Funes' score is only a teacher
 here: the table holds fitted numbers, and no Funes code was read or copied.
 
+## Release 1.3.0: outside engines with the pattern table (100 ms/move, one thread each, Hash 128, 6-ply random openings)
+
+`main` with the built-in table (defaults) against the same build with `PatternBlend=0`, which reproduces 1.2.0's search exactly
+(bench depth 7: 17,672,603 nodes, scoresum 751, as recorded for 1.2.0). Same openings for both configurations. TikTaxx rebuilt
+from `95dffff` (libataxx with cmake, then `make`); Funes `dd319f1`.
+
+| Opponent | games, seed | table on (1.3.0) | table off (= 1.2.0) |
+|---|---|---|---|
+| TikTaxx | 400, 5150 | 330-70, +269.4 +/- 44.8 | 337-63, +291.3 +/- 46.7 |
+| Funes | 400, 5150 | 102-298, -186.2 +/- 39.1 | 88-312, -219.9 +/- 41.1 |
+| Funes | 1200, 7 | 345-855, **-157.7 +/- 21.7** | 273-927, **-212.4 +/- 23.4** |
+| Funes, both runs pooled | 1600 | 447-1153, about -165 | 361-1239, about -214 |
+
+Against Funes the table is worth about +50 Elo (+55 +/- 32 in the large run), matching the self-play gain (+46 to +76 timed, +61
+in the final check). Against TikTaxx there is no measurable change because the match is lopsided (83-84% for gataxx either way).
+One game in each large Funes run ended with Funes sending an illegal move (scored as a gataxx win; at most 1 Elo).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

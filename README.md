@@ -13,7 +13,7 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.2.0.jar
+java -jar gataxx-1.3.0.jar
 ```
 
 ## Strength
@@ -21,15 +21,16 @@ java -jar gataxx-1.2.0.jar
 Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
 thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
-- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.2.0 wins about 83% of
-  games (+272 Elo, 400 games); version 1.1.0 scored +165.
-- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.2.0 loses about 76% of games
-  (-198 Elo, 400 games); version 1.1.0 scored -291. Funes is clearly stronger: it searches to a much greater
-  nominal depth with fewer nodes.
+- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.3.0 wins about 83% of
+  games (+269 Elo, 400 games); version 1.2.0 scored +272 to +291 and 1.1.0 +165. This match is too lopsided to show
+  small differences.
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.3.0 loses about 72% of games
+  (about -165 Elo, 1600 games); on the same openings 1.2.0 scored about -214 (1.1.0: -291). Funes is clearly stronger: it
+  searches to a much greater nominal depth with fewer nodes.
+- Version 1.3.0 beats 1.2.0 in 59-61% of games (+46 to +76 Elo on three seeds, 800 games each at 50 ms per move). The
+  gain comes from a learned table of local board patterns (see `PatternBlend` below).
 - Version 1.2.0 beats 1.1.0 in 66% of games (+117 Elo, 800 games at 50 ms per move).
-- On `main` (after 1.2.0) the built-in pattern table is on by default: +61 Elo against the same build with it off (800 games,
-  50 ms per move; 3 independent seeds gave +46 to +76). Not yet re-measured against TikTaxx or Funes.
-- For 1.1.0, TikTaxx needed roughly 7-8 times gataxx's thinking time per move to score level (not re-measured for 1.2.0).
+- For 1.1.0, TikTaxx needed roughly 7-8 times gataxx's thinking time per move to score level (not re-measured since).
 
 These are comparisons against a few engines, not ratings.
 
