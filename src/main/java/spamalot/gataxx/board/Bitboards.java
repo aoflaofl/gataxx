@@ -101,6 +101,64 @@ public final class Bitboards {
                 + Long.bitCount(a & shiftSouth(e)) + Long.bitCount(a & shiftSouth(w));
     }
 
+    /**
+     * The squares that have at least {@code k} of their (up to eight) neighbours in {@code set}. Counts all squares at once
+     * with bit-sliced adders instead of one population count per square.
+     */
+    public static long atLeastNeighbours(long set, int k) {
+        if (k <= 0) {
+            return ALL;
+        }
+        long up = shiftNorth(set);
+        long down = shiftSouth(set);
+        long right = shiftEast(set);
+        long left = shiftWest(set);
+        long x0 = up;
+        long x1 = down;
+        long x2 = right;
+        long x3 = left;
+        long x4 = shiftNorth(right);
+        long x5 = shiftNorth(left);
+        long x6 = shiftSouth(right);
+        long x7 = shiftSouth(left);
+        // Eight one-bit inputs per square -> a four-bit count (b3 b2 b1 b0).
+        long sa = x0 ^ x1 ^ x2;
+        long ca = (x0 & x1) | (x2 & (x0 ^ x1));
+        long sb = x3 ^ x4 ^ x5;
+        long cb = (x3 & x4) | (x5 & (x3 ^ x4));
+        long sc = x6 ^ x7;
+        long cc = x6 & x7;
+        long b0 = sa ^ sb ^ sc;
+        long c1 = (sa & sb) | (sc & (sa ^ sb));
+        long t = ca ^ cb ^ cc;
+        long u = (ca & cb) | (cc & (ca ^ cb));
+        long b1 = t ^ c1;
+        long v = t & c1;
+        long b2 = u ^ v;
+        long b3 = u & v;
+        return switch (k) {
+            case 1 -> b0 | b1 | b2 | b3;
+            case 2 -> b1 | b2 | b3;
+            case 3 -> (b1 & b0) | b2 | b3;
+            case 4 -> b2 | b3;
+            case 5 -> (b2 & (b1 | b0)) | b3;
+            case 6 -> (b2 & b1) | b3;
+            case 7 -> (b2 & b1 & b0) | b3;
+            default -> b3;
+        };
+    }
+
+    /**
+     * Number of unordered pairs of adjacent squares (diagonals included) that are both in {@code a}. Half of
+     * {@code adjacentPairs(a, a)}, using four directions instead of eight.
+     */
+    public static int adjacentPairsWithin(long a) {
+        long e = shiftEast(a);
+        long w = shiftWest(a);
+        return Long.bitCount(a & shiftNorth(a)) + Long.bitCount(a & e) + Long.bitCount(a & shiftNorth(e))
+                + Long.bitCount(a & shiftNorth(w));
+    }
+
     /** Every square in {@code b} plus all squares adjacent (incl. diagonals) to them. */
     public static long expand1(long b) {
         long row = b | ((b << 1) & NOT_FILE_A) | ((b >>> 1) & NOT_FILE_G);

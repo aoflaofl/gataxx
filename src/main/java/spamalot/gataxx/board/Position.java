@@ -225,13 +225,7 @@ public final class Position {
         }
         long mine = pieces(sideToMove);
         long theirs = pieces(1 - sideToMove);
-        long noisy = 0;
-        for (long t = Bitboards.expand2(mine) & empty(); t != 0; t &= t - 1) {
-            int sq = Long.numberOfTrailingZeros(t);
-            if (Long.bitCount(Bitboards.neighbours(sq) & theirs) >= minCaptures) {
-                noisy |= 1L << sq;
-            }
-        }
+        long noisy = Bitboards.expand2(mine) & empty() & Bitboards.atLeastNeighbours(theirs, minCaptures);
         int n = 0;
         for (long t = noisy & Bitboards.expand1(mine); t != 0; t &= t - 1) {
             out[n++] = Move.clone(Long.numberOfTrailingZeros(t));
@@ -245,12 +239,40 @@ public final class Position {
         return n;
     }
 
+    /**
+     * Like {@link #generateCaptureMoves} for a position the caller has already found not to be over, and with an ordering score
+     * per move in {@code scores}: twice the number of enemy pieces the move converts, plus one for a clone.
+     */
+    public int generateScoredCaptureMoves(int[] out, int[] scores, int minCaptures) {
+        long mine = pieces(sideToMove);
+        long theirs = pieces(1 - sideToMove);
+        long noisy = Bitboards.expand2(mine) & empty() & Bitboards.atLeastNeighbours(theirs, minCaptures);
+        if (noisy == 0) {
+            return 0;
+        }
+        int n = 0;
+        for (long t = noisy & Bitboards.expand1(mine); t != 0; t &= t - 1) {
+            int to = Long.numberOfTrailingZeros(t);
+            scores[n] = 2 * Long.bitCount(Bitboards.neighbours(to) & theirs) + 1;
+            out[n++] = Move.clone(to);
+        }
+        for (long p = mine & Bitboards.expand2(noisy); p != 0; p &= p - 1) {
+            int from = Long.numberOfTrailingZeros(p);
+            for (long t = Bitboards.ring2(from) & noisy; t != 0; t &= t - 1) {
+                int to = Long.numberOfTrailingZeros(t);
+                scores[n] = 2 * Long.bitCount(Bitboards.neighbours(to) & theirs);
+                out[n++] = Move.jump(from, to);
+            }
+        }
+        return n;
+    }
+
     /** Number of enemy pieces {@code move} would convert (0 for a pass). */
     public int captureCount(int move) {
         if (move == Move.PASS) {
             return 0;
         }
-        return Long.bitCount(Bitboards.expand1(1L << Move.to(move)) & pieces(1 - sideToMove));
+        return Long.bitCount(Bitboards.neighbours(Move.to(move)) & pieces(1 - sideToMove));
     }
 
     public boolean isLegal(int move) {
@@ -285,7 +307,7 @@ public final class Position {
             }
             mine |= toBit;
             newHash ^= Zobrist.piece(sideToMove, to);
-            long captured = Bitboards.expand1(toBit) & theirs;
+            long captured = Bitboards.neighbours(to) & theirs;
             mine |= captured;
             theirs ^= captured;
             for (long c = captured; c != 0; c &= c - 1) {

@@ -135,15 +135,21 @@ public final class PatternEvaluator implements Evaluator {
         }
         long mine = pos.pieces(pos.sideToMove());
         long theirs = pos.pieces(1 - pos.sideToMove());
-        long playable = ~pos.walls() & Bitboards.ALL;
+        long empty = pos.empty();
+        int sum = sumOver(empty, mine, theirs, 0) + sumOver(mine, mine, theirs, STATE_STRIDE)
+                + sumOver(theirs, mine, theirs, 2 * STATE_STRIDE);
+        return (int) Math.round((1 - blend) * b + perUnit * sum + offset);
+    }
+
+    /** Sum of the weights of the squares in {@code squares}, all of which are in the state whose weights start at {@code base}. */
+    private int sumOver(long squares, long mine, long theirs, int base) {
         int sum = 0;
-        for (long rest = playable; rest != 0; rest &= rest - 1) {
+        for (long rest = squares; rest != 0; rest &= rest - 1) {
             int sq = Long.numberOfTrailingZeros(rest);
             long around = AROUND[sq];
-            int state = (int) (mine >>> sq & 1) + 2 * (int) (theirs >>> sq & 1);
-            sum += flat[state * STATE_STRIDE + CLASS_OFFSET[sq] + 9 * Long.bitCount(around & mine) + Long.bitCount(around & theirs)];
+            sum += flat[base + CLASS_OFFSET[sq] + 9 * Long.bitCount(around & mine) + Long.bitCount(around & theirs)];
         }
-        return (int) Math.round((1 - blend) * b + perUnit * sum + offset);
+        return sum;
     }
 
     private static final long[] AROUND = new long[Bitboards.SQUARES];

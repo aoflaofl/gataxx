@@ -312,13 +312,7 @@ public final class Searcher {
         int bestMove = Move.NONE;
         for (int i = 0; i < n; i++) {
             // Lazy selection sort: only pays for ordering as far as we get before a cutoff.
-            int bi = i;
-            for (int j = i + 1; j < n; j++) {
-                if (scores[j] > scores[bi]) {
-                    bi = j;
-                }
-            }
-            swap(moves, scores, i, bi);
+            swap(moves, scores, i, bestIndex(scores, i, n));
 
             int move = moves[i];
             if (futile && i > 0 && move != Move.PASS) {
@@ -395,19 +389,9 @@ public final class Searcher {
 
         int[] moves = moveBuf[ply];
         int[] scores = scoreBuf[ply];
-        int k = pos.generateCaptureMoves(moves, qMinCaptures);
+        int k = pos.generateScoredCaptureMoves(moves, scores, qMinCaptures);
         for (int i = 0; i < k; i++) {
-            int m = moves[i];
-            scores[i] = pos.captureCount(m) * 2 + (Move.isClone(m) ? 1 : 0);
-        }
-        for (int i = 0; i < k; i++) {
-            int bi = i;
-            for (int j = i + 1; j < k; j++) {
-                if (scores[j] > scores[bi]) {
-                    bi = j;
-                }
-            }
-            swap(moves, scores, i, bi);
+            swap(moves, scores, i, bestIndex(scores, i, k));
             int score = -quiesce(pos.makeMove(moves[i]), -beta, -alpha, ply + 1, qply + 1);
             if (aborted) {
                 return 0;
@@ -496,6 +480,18 @@ public final class Searcher {
             }
         }
         return bi;
+    }
+
+    /**
+     * Index in {@code [from, to)} of the first highest score. Packs each score with its index so that the maximum is found
+     * without a data-dependent branch (this scan is hot and its comparison is hard to predict). Needs {@code to <= 1024}.
+     */
+    private static int bestIndex(int[] scores, int from, int to) {
+        long best = ((long) scores[from] << 10) | (1023 - from);
+        for (int j = from + 1; j < to; j++) {
+            best = Math.max(best, ((long) scores[j] << 10) | (1023 - j));
+        }
+        return 1023 - (int) (best & 1023);
     }
 
     private static void swap(int[] moves, int[] scores, int a, int b) {

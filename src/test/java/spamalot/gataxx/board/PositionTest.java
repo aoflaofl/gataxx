@@ -187,6 +187,36 @@ class PositionTest {
     }
 
     @Test
+    void scoredCaptureMovesMatchTheUnscoredOnesAndScoreByConversions() {
+        java.util.Random rnd = new java.util.Random(77);
+        int[] all = new int[Position.MAX_MOVES];
+        int[] caps = new int[Position.MAX_MOVES];
+        int[] moves = new int[Position.MAX_MOVES];
+        int[] scores = new int[Position.MAX_MOVES];
+        int checked = 0;
+        for (int game = 0; game < 100; game++) {
+            Position p = game % 3 == 0 ? Position.fromFen("x5o/7/2-1-2/3-3/2-1-2/7/o5x x 0 1") : Position.startPos();
+            for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
+                for (int min = 0; min <= 5; min++) {
+                    int want = p.generateCaptureMoves(caps, min);
+                    int got = p.generateScoredCaptureMoves(moves, scores, min);
+                    assertEquals(want, got);
+                    for (int i = 0; i < got; i++) {
+                        assertEquals(caps[i], moves[i]);
+                        long converted = Bitboards.expand1(1L << Move.to(moves[i])) & p.pieces(1 - p.sideToMove());
+                        assertEquals(2 * Long.bitCount(converted) + (Move.isClone(moves[i]) ? 1 : 0), scores[i]);
+                        assertEquals(Long.bitCount(converted), p.captureCount(moves[i]));
+                        checked++;
+                    }
+                }
+                int n = p.generateMoves(all);
+                p = p.makeMove(all[rnd.nextInt(n)]);
+            }
+        }
+        assertTrue(checked > 5000);
+    }
+
+    @Test
     void captureMovesOfFinishedGameAreEmpty() {
         Position over = Position.fromFen("xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxoo o 0 1");
         assertEquals(0, over.generateCaptureMoves(new int[Position.MAX_MOVES], 1));

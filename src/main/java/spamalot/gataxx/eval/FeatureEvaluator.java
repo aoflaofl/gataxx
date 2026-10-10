@@ -292,8 +292,8 @@ public final class FeatureEvaluator implements Evaluator {
             positional += w.ring1() * (Long.bitCount(mine & RING1) - Long.bitCount(theirs & RING1));
         }
         if (w.cohesion() != 0) {
-            positional += w.cohesion() * (Bitboards.adjacentPairs(mine, mine)
-                    - Bitboards.adjacentPairs(theirs, theirs)) / FINE;
+            positional += w.cohesion() * 2 * (Bitboards.adjacentPairsWithin(mine)
+                    - Bitboards.adjacentPairsWithin(theirs)) / FINE;
         }
         if (w.edge() != 0) {
             positional += w.edge() * (Long.bitCount(mine & EDGE) - Long.bitCount(theirs & EDGE));
