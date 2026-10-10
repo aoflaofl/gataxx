@@ -218,6 +218,25 @@ class PositionTest {
     }
 
     @Test
+    void unhashedMovesGiveTheSamePositionsAsHashedOnes() {
+        java.util.Random rnd = new java.util.Random(31);
+        int[] all = new int[Position.MAX_MOVES];
+        for (int game = 0; game < 60; game++) {
+            Position p = game % 3 == 0 ? Position.fromFen("x5o/7/2-1-2/3-3/2-1-2/7/o5x x 0 1") : Position.startPos();
+            for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
+                int n = p.generateMoves(all);
+                for (int i = 0; i < n; i++) {
+                    Position hashed = p.makeMove(all[i]);
+                    Position unhashed = p.makeMoveUnhashed(all[i]);
+                    assertEquals(hashed, unhashed);
+                    assertEquals(hashed.toFen(), unhashed.toFen());
+                }
+                p = p.makeMove(all[rnd.nextInt(n)]);
+            }
+        }
+    }
+
+    @Test
     void captureMovesOfFinishedGameAreEmpty() {
         Position over = Position.fromFen("xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxxx/xxxxxoo o 0 1");
         assertEquals(0, over.generateCaptureMoves(new int[Position.MAX_MOVES], 1));

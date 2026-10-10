@@ -325,6 +325,35 @@ public final class Position {
                 : new Position(theirs, mine, walls, X, halfmove, fullmove, newHash);
     }
 
+    /**
+     * Like {@link #makeMove} but leaves the hash out (it reads 0), which saves the per-capture key updates. For the
+     * quiescence search, whose positions never reach the transposition table; do not call {@link #hash()} on the result.
+     */
+    public Position makeMoveUnhashed(int move) {
+        long mine = pieces(sideToMove);
+        long theirs = pieces(1 - sideToMove);
+        int halfmove;
+        if (move == Move.PASS) {
+            halfmove = halfmoveClock + 1;
+        } else {
+            long toBit = 1L << Move.to(move);
+            if (Move.isClone(move)) {
+                halfmove = 0;
+            } else {
+                mine ^= 1L << Move.from(move);
+                halfmove = halfmoveClock + 1;
+            }
+            mine |= toBit;
+            long captured = Bitboards.neighbours(Move.to(move)) & theirs;
+            mine |= captured;
+            theirs ^= captured;
+        }
+        int fullmove = sideToMove == O ? fullmoveNumber + 1 : fullmoveNumber;
+        return sideToMove == X
+                ? new Position(mine, theirs, walls, O, halfmove, fullmove, 0)
+                : new Position(theirs, mine, walls, X, halfmove, fullmove, 0);
+    }
+
     @Override
     public boolean equals(Object obj) {
         return obj instanceof Position p

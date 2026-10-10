@@ -401,7 +401,7 @@ public final class Searcher {
             moves[i] = moves[bi];
             moves[bi] = moved;
             scores[bi] = (scores[i] & ~Position.KEY_INDEX_MASK) | (Position.KEY_INDEX_MASK - bi);
-            int score = -quiesce(pos.makeMove(moves[i]), -beta, -alpha, ply + 1, qply + 1);
+            int score = -quiesce(pos.makeMoveUnhashed(moves[i]), -beta, -alpha, ply + 1, qply + 1);
             if (aborted) {
                 return 0;
             }
