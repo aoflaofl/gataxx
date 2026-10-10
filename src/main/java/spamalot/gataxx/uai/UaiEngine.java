@@ -75,6 +75,7 @@ public final class UaiEngine {
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private String patternFile = "";
     private int patternBlend;
+    private int patternMargin;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
     private Thread searchThread;
@@ -141,6 +142,7 @@ public final class UaiEngine {
                     send("option name FutilityDepth type spin default 2 min 1 max 6");
                     send("option name PatternFile type string default <empty>");
                     send("option name PatternBlend type spin default 0 min 0 max 100");
+                    send("option name PatternMargin type spin default 0 min 0 max 2000");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
                     send("option name LmrMinDepth type spin default 4 min 2 max 20");
@@ -245,6 +247,8 @@ public final class UaiEngine {
             patternEvaluatorFor(new FeatureEvaluator(new Weights(FeatureEvaluator.SCALE, 0, 0, 0, 0)), 0.5); // validates the file now
         } else if (name.equalsIgnoreCase("PatternBlend")) {
             patternBlend = spinValue(name, value, 0, 100);
+        } else if (name.equalsIgnoreCase("PatternMargin")) {
+            patternMargin = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("Lmr")) {
             lmr = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("LmrMoves")) {
@@ -343,7 +347,7 @@ public final class UaiEngine {
 
     private Evaluator patternEvaluatorFor(Evaluator base, double blend) {
         try {
-            return PatternEvaluator.load(java.nio.file.Path.of(patternFile), base, blend);
+            return PatternEvaluator.load(java.nio.file.Path.of(patternFile), base, blend).withMargin(patternMargin);
         } catch (java.io.IOException | RuntimeException e) {
             throw new IllegalArgumentException("cannot load pattern table '" + patternFile + "': " + e.getMessage(), e);
         }

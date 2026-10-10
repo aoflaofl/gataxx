@@ -426,6 +426,43 @@ was): gataxx values positions differently in a way more depth does not remove, e
 tried, singly or together, expresses it. The remaining difference is either pattern-level structure (not counts) or an
 effective-depth effect hidden by selective search.
 
+## A learned local-environment table (`LocalPatterns`, `PatternFit`, `PatternEvaluator`)
+
+Idea: describe every square by (state: empty / mine / theirs, square type among the ten under the board's symmetries, number of
+friendly and of enemy neighbours) = 1029 features, and sum a learned weight per square. It contains safe stones, holes,
+cohesion, exposure and the square regions as special cases. `tools.PatternFit` fits the weights by ridge regression
+(conjugate gradient, ridge 300) to Funes' black-box scores for 60,477 positions (outputs only; no Funes code or values were
+used), with `teacher = a + b * our_score` linking the units. `PatternEvaluator` blends it: `(1 - w) * base + w * (T - a) / b`.
+Held-out R^2 against Funes rose only from 0.444 to 0.474, but the table was never meant as a better predictor, only as a
+different source of knowledge, so it was tested in play.
+
+Fixed node budget (100000 nodes per move, 400 games, seed 31, against the defaults): blend 25 / 50 / 100: **+79.5 / +81.4 /
+-56.1** (+/- 35). Fresh seed 77, 800 games: blend 25 **+71.3**, blend 50 **+62.3** (+/- 25). So a mix helps; the table alone does not.
+
+The first implementation was 3.6x slower per node (bench depth 9: 13.2M to 3.7M nodes/s), and in timed play (`go movetime 50`,
+800 games, seed 91) blend 25 lost **-57.0 +/- 24**. Two speed-ups, neither changing the search tree (188.1M nodes, same score sum):
+
+- A flat integer weight table with direct summation over the playable squares (no index array, no nested lookups): 6.7M nodes/s.
+- Lazy evaluation in quiescence stand-pat (`PatternMargin`): when the base score is at least `margin` outside the search window
+  the table is skipped. Margin 32 / 16 / 8 run at 9.6M / 10.4M / 11.7M nodes/s (1.38x / 1.27x / 1.13x slower than no table);
+  margin 8 starts to change the tree.
+
+Timed play (`go movetime 50`, 800 games per row, against the defaults):
+
+| Configuration | seed 91 | seed 123 |
+|---|---|---|
+| blend 25, margin 32 | +31.4 +/- 24 | – |
+| blend 25, margin 16 | +51.6 +/- 24 | – |
+| blend 50, margin 32 | +75.9 +/- 25 | +46.3 +/- 24 |
+| blend 50, margin 16 | – | +30.5 +/- 24 |
+| blend 75, margin 16 | – | +50.7 +/- 24 |
+
+All rows are positive; blends 25 to 75 and margins 16 to 32 cannot be told apart at this sample size. Blend 50 with margin 32
+has the best combined evidence. Not yet done: longer time controls, an embedded table with the option on by default, a table
+refitted to self-play outcomes or a larger teacher set, and a comparison against the outside engines.
+
+The table used here (`table2.txt`) is a scratch file and is not in the repository; `PatternFile` and `PatternBlend` default to off.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

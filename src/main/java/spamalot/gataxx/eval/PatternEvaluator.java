@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import spamalot.gataxx.board.Bitboards;
 import spamalot.gataxx.board.Position;
 
 /**
@@ -14,12 +15,16 @@ import spamalot.gataxx.board.Position;
  */
 public final class PatternEvaluator implements Evaluator {
     private final Evaluator base;
-    private final double[] weights;
-    private final double intercept;
-    private final double unitsA;
-    private final double unitsB;
+    private static final int SCALE = 256;
+    private static final int CELL = 81;
+    private static final int STATE_STRIDE = 10 * CELL;
+
+    /** Weights in 1/{@link #SCALE} units, laid out as {@code state * 810 + squareClass * 81 + mine * 9 + theirs}. */
+    private final int[] flat = new int[3 * STATE_STRIDE];
     private final double blend;
-    private final int[] idx = new int[49];
+    private int margin;
+    private final double perUnit;
+    private final double offset;
 
     public PatternEvaluator(Evaluator base, double[] weights, double intercept, double unitsA, double unitsB, double blend) {
         if (weights.length != LocalPatterns.SIZE) {
@@ -29,11 +34,21 @@ public final class PatternEvaluator implements Evaluator {
             throw new IllegalArgumentException("blend must be in [0, 1] and units must be non-degenerate");
         }
         this.base = base;
-        this.weights = weights;
-        this.intercept = intercept;
-        this.unitsA = unitsA;
-        this.unitsB = unitsB;
         this.blend = blend;
+        this.perUnit = blend / (unitsB * SCALE);
+        this.offset = blend * (intercept - unitsA) / unitsB;
+        for (int state = 0; state < 3; state++) {
+            for (int cls = 0; cls < 10; cls++) {
+                for (int m = 0; m <= 8; m++) {
+                    for (int t = 0; t <= 8; t++) {
+                        int j = LocalPatterns.index(state, cls, m, t);
+                        if (j >= 0) {
+                            flat[state * STATE_STRIDE + cls * CELL + m * 9 + t] = (int) Math.round(weights[j] * SCALE);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /** Loads a table written by {@code PatternFit}. */
@@ -68,20 +83,55 @@ public final class PatternEvaluator implements Evaluator {
         return new PatternEvaluator(base, w, intercept, a, b, blend);
     }
 
+    /**
+     * Lazy evaluation: when the base score is at least {@code margin} outside the search window the table is skipped and the
+     * base score returned. 0 (the default) always applies the table.
+     */
+    public PatternEvaluator withMargin(int margin) {
+        this.margin = margin;
+        return this;
+    }
+
+    @Override
+    public int evaluate(Position pos, int alpha, int beta) {
+        int b = base.evaluate(pos);
+        if (margin > 0) {
+            if (b - margin >= beta || b + margin <= alpha) {
+                return b;
+            }
+        }
+        return blended(pos, b);
+    }
+
     @Override
     public int evaluate(Position pos) {
-        int b = base.evaluate(pos);
+        return blended(pos, base.evaluate(pos));
+    }
+
+    private int blended(Position pos, int b) {
         if (blend == 0) {
             return b;
         }
-        LocalPatterns.features(pos, idx);
-        double t = intercept;
-        for (int j : idx) {
-            if (j >= 0) {
-                t += weights[j];
-            }
+        long mine = pos.pieces(pos.sideToMove());
+        long theirs = pos.pieces(1 - pos.sideToMove());
+        long playable = ~pos.walls() & Bitboards.ALL;
+        int sum = 0;
+        for (long rest = playable; rest != 0; rest &= rest - 1) {
+            int sq = Long.numberOfTrailingZeros(rest);
+            long around = AROUND[sq];
+            int state = (int) (mine >>> sq & 1) + 2 * (int) (theirs >>> sq & 1);
+            sum += flat[state * STATE_STRIDE + CLASS_OFFSET[sq] + 9 * Long.bitCount(around & mine) + Long.bitCount(around & theirs)];
         }
-        double inOurUnits = (t - unitsA) / unitsB;
-        return (int) Math.round((1 - blend) * b + blend * inOurUnits);
+        return (int) Math.round((1 - blend) * b + perUnit * sum + offset);
+    }
+
+    private static final long[] AROUND = new long[Bitboards.SQUARES];
+    private static final int[] CLASS_OFFSET = new int[Bitboards.SQUARES];
+
+    static {
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            AROUND[sq] = Bitboards.neighbours(sq);
+            CLASS_OFFSET[sq] = FeatureEvaluator.SQUARE_CLASS[sq] * CELL;
+        }
     }
 }

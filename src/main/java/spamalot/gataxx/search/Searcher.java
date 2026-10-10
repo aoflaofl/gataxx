@@ -382,7 +382,7 @@ public final class Searcher {
         if (pos.isGameOver()) {
             return terminalScore(pos, ply);
         }
-        int standPat = evaluator.evaluate(pos);
+        int standPat = evaluator.evaluate(pos, alpha, beta);
         if (standPat >= beta) {
             return beta;
         }
