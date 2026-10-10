@@ -485,6 +485,39 @@ Against Funes the table is worth about +50 Elo (+55 +/- 32 in the large run), ma
 in the final check). Against TikTaxx there is no measurable change because the match is lopsided (83-84% for gataxx either way).
 One game in each large Funes run ended with Funes sending an illegal move (scored as a gataxx win; at most 1 Elo).
 
+## Speed after 1.3.0 (same search, more nodes per second)
+
+Method: `bench 9` (16 fixed positions) before and after every change; a change counted as "exact" only if nodes and score
+checksum stayed identical (default: 224,580,569 nodes, scoresum 592; table off: 147,153,491 nodes, scoresum 670). Profiles from
+JFR with `-XX:+DebugNonSafepoints` (without it the line attribution was misleading and sent me after the wrong loop twice).
+
+| Step (exact unless noted) | Default nodes/s | Table off nodes/s |
+|---|---|---|
+| 1.3.0 | 9.38M | 18.55M (13.2M before the first step below) |
+| Bit-sliced "squares with at least k enemy neighbours" for capture generation (`atLeastNeighbours`) | 10.23M | |
+| Cohesion with half the pair counting (`adjacentPairsWithin`) | 10.40M | |
+| Capture generation emits scores, skips when nothing qualifies, scans only useful source stones; per-state pattern loop | 11.4M | |
+| Branchless best-move selection (packed score+index keys) | 11.5M | |
+| Int keys from the generator, vectorisable max scan; single-array Zobrist flip | 12.7M | 19.4M |
+| `makeMoveUnhashed` for quiescence positions (no key updates) | 13.4M | 20.7M |
+
+Overall +43% nodes/s at an identical tree. Played against the published 1.3.0 jar, timed 50 ms, 1600 games, seed 777:
+**+888 -712, +38.4 +/- 17.1 Elo**, all from speed. Where the time goes now (default): pattern table sum 33%, quiescence node
+overhead 15%, capture generation 13%, hand-weighted evaluation 9%, transposition table probe 4%.
+
+Quiescence dominates the node count: of 220.8M evaluations in the depth-9 bench, 13% are at quiescence ply 0, 13% at ply 1, 5% at
+ply 2, 39% at ply 3 and 30% at ply 4 (the last); the table runs on 35% of them (margin 32).
+
+Tried, no gain (reverted or not adopted):
+
+| Idea | Result |
+|---|---|
+| Share the "side to move can land somewhere" expansion between the game-over test and move generation | no change: the JIT had already merged the two inlined copies |
+| Table margins 16 and 8 instead of 32 (time to depth 9 falls from 19.3 s to 11.3 s and 10.4 s, but the tree changes) | timed 50 ms, 1200 games each vs margin 32: -12.2 +/- 19.7 and -9.3 +/- 19.7; kept 32 |
+| Carry the table's correction (blended minus base) from a node to its children and compute the table only at the first quiescence ply | correction sd is only 19 units but corr(parent, child) = -0.39; predicting a child's correction as minus the parent's is worse (rms 22.7) than using none (21.3). Dead |
+| Additive table: weight = a[state, class] + b[state, friendly count] + d[state, enemy count] (84 parameters, summable with a few dozen popcounts) | held-out R^2 0.443, no better than the plain feature counts (0.444) against 0.474 for the full table: the value is in the friendly/enemy interaction, which cannot be bit-summed cheaply |
+| JVM warm-up | first 100 ms search from a cold JVM reaches depth 10 at about 9M nodes/s against 10-16M later; GC pauses total 51 ms in a 17 s run. Not worth engineering |
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
