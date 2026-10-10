@@ -9,7 +9,9 @@ import java.util.List;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Perft;
 import spamalot.gataxx.board.Position;
+import spamalot.gataxx.eval.Evaluator;
 import spamalot.gataxx.eval.FeatureEvaluator;
+import spamalot.gataxx.eval.PatternEvaluator;
 import spamalot.gataxx.eval.FeatureEvaluator.Weights;
 import spamalot.gataxx.search.BenchPositions;
 import spamalot.gataxx.search.SearchLimits;
@@ -71,6 +73,8 @@ public final class UaiEngine {
     private int nullMinEmpties = 12;
     private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
+    private String patternFile = "";
+    private int patternBlend;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private Searcher searcher;
     private Thread searchThread;
@@ -135,6 +139,8 @@ public final class UaiEngine {
                     send("option name Futility type spin default 0 min 0 max 1");
                     send("option name FutilityMargin type spin default 48 min 0 max 1000");
                     send("option name FutilityDepth type spin default 2 min 1 max 6");
+                    send("option name PatternFile type string default <empty>");
+                    send("option name PatternBlend type spin default 0 min 0 max 100");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
                     send("option name LmrMinDepth type spin default 4 min 2 max 20");
@@ -234,6 +240,11 @@ public final class UaiEngine {
             futilityMargin = spinValue(name, value, 0, 1000);
         } else if (name.equalsIgnoreCase("FutilityDepth")) {
             futilityDepth = spinValue(name, value, 1, 6);
+        } else if (name.equalsIgnoreCase("PatternFile")) {
+            patternFile = value.equals("<empty>") ? "" : value;
+            patternEvaluatorFor(new FeatureEvaluator(new Weights(FeatureEvaluator.SCALE, 0, 0, 0, 0)), 0.5); // validates the file now
+        } else if (name.equalsIgnoreCase("PatternBlend")) {
+            patternBlend = spinValue(name, value, 0, 100);
         } else if (name.equalsIgnoreCase("Lmr")) {
             lmr = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("LmrMoves")) {
@@ -330,12 +341,24 @@ public final class UaiEngine {
         searchThread.start();
     }
 
+    private Evaluator patternEvaluatorFor(Evaluator base, double blend) {
+        try {
+            return PatternEvaluator.load(java.nio.file.Path.of(patternFile), base, blend);
+        } catch (java.io.IOException | RuntimeException e) {
+            throw new IllegalArgumentException("cannot load pattern table '" + patternFile + "': " + e.getMessage(), e);
+        }
+    }
+
     /** A searcher configured with the current options and sharing the current table. */
     private Searcher newSearcher() {
-        Searcher s = new Searcher(new FeatureEvaluator(
+        Evaluator evaluator = new FeatureEvaluator(
                 new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
                         evalReach, evalTerritory, evalEdge, tempo, evalFade,
-                        evalCorner, evalRing1, evalCohesion, evalThreat)), tt);
+                        evalCorner, evalRing1, evalCohesion, evalThreat));
+        if (!patternFile.isEmpty() && patternBlend > 0) {
+            evaluator = patternEvaluatorFor(evaluator, patternBlend / 100.0);
+        }
+        Searcher s = new Searcher(evaluator, tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
