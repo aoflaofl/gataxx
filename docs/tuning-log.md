@@ -518,6 +518,33 @@ Tried, no gain (reverted or not adopted):
 | Additive table: weight = a[state, class] + b[state, friendly count] + d[state, enemy count] (84 parameters, summable with a few dozen popcounts) | held-out R^2 0.443, no better than the plain feature counts (0.444) against 0.474 for the full table: the value is in the friendly/enemy interaction, which cannot be bit-summed cheaply |
 | JVM warm-up | first 100 ms search from a cold JVM reaches depth 10 at about 9M nodes/s against 10-16M later; GC pauses total 51 ms in a 17 s run. Not worth engineering |
 
+## Lazy SMP (`Threads`)
+
+`ParallelSearch` runs the usual searcher as the main thread and N-1 helper searchers on the same root over one shared table.
+The table is lock-free safe: the key word is stored XORed with the data word, so a read that mixes two concurrent writes fails
+the key check and is a miss (`TranspositionTableTest` hammers one with four writers). Helpers leave the table's age to the main
+thread and skip iterations of the iterative deepening in a staggered pattern (the Stockfish skip-size/skip-phase scheme); the
+main thread alone decides the result, and the reported node count is the sum over threads. `Threads 1` is exactly the
+single-threaded search (bench unchanged: 224,580,569 nodes, scoresum 592).
+
+The first version had helpers start at depth 1 or 2 and iterate every depth: node throughput scaled almost linearly
+(14M, 28M, 57M, 109M nodes/s for 1, 2, 4, 8 threads) but time to depth 13 did not move at all, because the helpers repeated the
+main thread's work step for step and the main thread never found anything in the table it had not computed itself. With the
+skip pattern, time to depth 13 on two positions went from 1.22 s / 1.78 s (1 thread) to 1.09 s / 2.21 s (2), 0.74 s / 1.46 s
+(4) and 0.96 s / 1.55 s (8); noisy, as expected for Lazy SMP at this depth.
+
+Strength against the same engine with one thread, equal wall-clock time (`go movetime 50`, seed 99, one searching process per
+side, no illegal moves or timeouts):
+
+| Threads | games | result |
+|---|---|---|
+| 2 | 600 | +325 -275, +29.0 +/- 27.9 |
+| 4 | 600 | +388 -212, **+105.0 +/- 29.1** |
+| 8 | 400 | +269 -131, **+125.0 +/- 36.3** |
+
+Machine: Intel Core Ultra 7 265 (20 cores), so none of these runs oversubscribed it (2, 4 and 8 threads with 6, 4 and 2
+concurrent games). All earlier results in this log are single-threaded.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

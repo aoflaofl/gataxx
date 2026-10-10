@@ -68,6 +68,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `bench [depth]` | Searches 16 fixed positions to a fixed depth (default 6) and prints nodes, time, nps and a score checksum, for comparing search changes exactly. |
 | `setoption name Pvs value 0\|1` | Principal variation search (default 1). |
 | `setoption name Lmr value 0\|1` | Late-move reductions (default 1) with `LmrMoves` (3), `LmrMinDepth` (4) and `LmrDeepMoves` (6: moves ranked this late are reduced by two plies). |
+| `setoption name Threads value <n>` | Search threads (default 1, max 64): Lazy SMP, where helper threads search the same position over a shared lock-free transposition table, skipping different iterations. The search is not deterministic with more than one thread. Against 1 thread at equal time per move (50 ms): 2 threads about +30 Elo, 4 threads about +105, 8 threads about +125. |
 | `setoption name PatternBlend value <n>` | Percentage (default 50, `0` = off) of a built-in learned local-environment table mixed into the evaluation: a weight per square, by its state, its square type and its friendly/enemy neighbour counts. `PatternMargin` (default 32, in 1/16 piece) skips the table when the plain score is clearly outside the search window; `PatternFile` loads another table written by `tools.PatternFit` instead of the built-in one. |
 | `setoption name NullMove value 0\|1`, `Futility` | Null-move pruning and futility pruning, with their parameters (`NullR`, `NullMinEmpties`, `FutilityMargin`, `FutilityDepth`). Both default to 0: neither helped in tests. |
 
