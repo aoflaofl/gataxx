@@ -13,7 +13,7 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.3.0.jar
+java -jar gataxx-1.4.0.jar
 ```
 
 ## Strength
@@ -21,12 +21,15 @@ java -jar gataxx-1.3.0.jar
 Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
 thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
+- Version 1.4.0 beats 1.3.0 by about +38 Elo (888-712, 1600 games at 50 ms per move, one thread each): the search is
+  identical, the engine is about 43% faster per node. With `Threads` it is much stronger still: against itself on one thread
+  at equal time per move, 4 threads score about +105 Elo and 8 threads about +125.
 - Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.3.0 wins about 83% of
-  games (+269 Elo, 400 games); version 1.2.0 scored +272 to +291 and 1.1.0 +165. This match is too lopsided to show
-  small differences.
+  games (+269 Elo, 400 games, 100 ms per move); version 1.2.0 scored +272 to +291 and 1.1.0 +165. This match is too
+  lopsided to show small differences. Not re-measured for 1.4.0.
 - Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.3.0 loses about 72% of games
-  (about -165 Elo, 1600 games); on the same openings 1.2.0 scored about -214 (1.1.0: -291). Funes is clearly stronger: it
-  searches to a much greater nominal depth with fewer nodes.
+  (about -165 Elo, 1600 games, 100 ms per move); on the same openings 1.2.0 scored about -214 (1.1.0: -291). Funes is
+  clearly stronger: it searches to a much greater nominal depth with fewer nodes. Not re-measured for 1.4.0.
 - Version 1.3.0 beats 1.2.0 in 59-61% of games (+46 to +76 Elo on three seeds, 800 games each at 50 ms per move). The
   gain comes from a learned table of local board patterns (see `PatternBlend` below).
 - Version 1.2.0 beats 1.1.0 in 66% of games (+117 Elo, 800 games at 50 ms per move).
