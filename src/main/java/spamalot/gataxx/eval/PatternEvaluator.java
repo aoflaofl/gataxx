@@ -1,6 +1,10 @@
 package spamalot.gataxx.eval;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -51,14 +55,31 @@ public final class PatternEvaluator implements Evaluator {
         }
     }
 
+    /** Resource holding the table that ships with the engine. */
+    static final String BUILT_IN = "pattern-table.txt";
+
     /** Loads a table written by {@code PatternFit}. */
     public static PatternEvaluator load(Path file, Evaluator base, double blend) throws IOException {
+        return parse(Files.readAllLines(file), file.toString(), base, blend);
+    }
+
+    /** Loads the table that ships inside the jar. */
+    public static PatternEvaluator builtIn(Evaluator base, double blend) throws IOException {
+        try (InputStream in = PatternEvaluator.class.getResourceAsStream(BUILT_IN)) {
+            if (in == null) {
+                throw new IOException("built-in pattern table is missing from the jar");
+            }
+            List<String> lines = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().toList();
+            return parse(lines, "built-in table", base, blend);
+        }
+    }
+
+    private static PatternEvaluator parse(List<String> lines, String source, Evaluator base, double blend) throws IOException {
         double[] w = new double[LocalPatterns.SIZE];
         boolean[] seen = new boolean[LocalPatterns.SIZE];
         double intercept = 0;
         double a = 0;
         double b = 1;
-        List<String> lines = Files.readAllLines(file);
         for (String line : lines) {
             String[] t = line.trim().split("\\s+");
             if (line.startsWith("# intercept ")) {
@@ -77,7 +98,7 @@ public final class PatternEvaluator implements Evaluator {
         }
         for (boolean s : seen) {
             if (!s) {
-                throw new IOException("table is incomplete: " + file);
+                throw new IOException("table is incomplete: " + source);
             }
         }
         return new PatternEvaluator(base, w, intercept, a, b, blend);

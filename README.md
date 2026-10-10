@@ -27,6 +27,8 @@ thread each, default settings, random 6-ply openings, 100 ms per move unless sta
   (-198 Elo, 400 games); version 1.1.0 scored -291. Funes is clearly stronger: it searches to a much greater
   nominal depth with fewer nodes.
 - Version 1.2.0 beats 1.1.0 in 66% of games (+117 Elo, 800 games at 50 ms per move).
+- On `main` (after 1.2.0) the built-in pattern table is on by default: +61 Elo against the same build with it off (800 games,
+  50 ms per move; 3 independent seeds gave +46 to +76). Not yet re-measured against TikTaxx or Funes.
 - For 1.1.0, TikTaxx needed roughly 7-8 times gataxx's thinking time per move to score level (not re-measured for 1.2.0).
 
 These are comparisons against a few engines, not ratings.
@@ -65,6 +67,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `bench [depth]` | Searches 16 fixed positions to a fixed depth (default 6) and prints nodes, time, nps and a score checksum, for comparing search changes exactly. |
 | `setoption name Pvs value 0\|1` | Principal variation search (default 1). |
 | `setoption name Lmr value 0\|1` | Late-move reductions (default 1) with `LmrMoves` (3), `LmrMinDepth` (4) and `LmrDeepMoves` (6: moves ranked this late are reduced by two plies). |
+| `setoption name PatternBlend value <n>` | Percentage (default 50, `0` = off) of a built-in learned local-environment table mixed into the evaluation: a weight per square, by its state, its square type and its friendly/enemy neighbour counts. `PatternMargin` (default 32, in 1/16 piece) skips the table when the plain score is clearly outside the search window; `PatternFile` loads another table written by `tools.PatternFit` instead of the built-in one. |
 | `setoption name NullMove value 0\|1`, `Futility` | Null-move pruning and futility pruning, with their parameters (`NullR`, `NullMinEmpties`, `FutilityMargin`, `FutilityDepth`). Both default to 0: neither helped in tests. |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
@@ -98,7 +101,7 @@ core count when using `--movetime`, or CPU contention will skew the results.
 ## Layout
 
 - `board`: bitboard `Position`, moves, FEN, perft
-- `eval`: `Evaluator` and the material evaluator
+- `eval`: `Evaluator`, the feature evaluator, and the learned local-environment table (`LocalPatterns`, `PatternEvaluator`, resource `pattern-table.txt`)
 - `search`: `Searcher` (NegaMax/alpha-beta, iterative deepening), limits, time management
 - `uai`: the protocol front end
 - `tools`: the self-play match harness (`Match`, `UaiClient`, `Elo`)

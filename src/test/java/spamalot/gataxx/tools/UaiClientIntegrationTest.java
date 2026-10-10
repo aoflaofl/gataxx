@@ -40,6 +40,7 @@ class UaiClientIntegrationTest {
     void setOptionsReachTheEngine() throws Exception {
         try (UaiClient c = UaiClient.start(engineCommand())) {
             c.setOption("Hash", "1");
+            c.setOption("PatternBlend", "0");
             c.setOption("QuiesceMinCaptures", "2");
             String fen = "o6/o6/o3x2/6o/2x1x2/3x3/7 x 0 9";
             assertEquals("f3", c.bestMove(Position.fromFen(fen), List.of(), "depth 1", 10_000));

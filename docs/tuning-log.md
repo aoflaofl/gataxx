@@ -461,7 +461,12 @@ All rows are positive; blends 25 to 75 and margins 16 to 32 cannot be told apart
 has the best combined evidence. Not yet done: longer time controls, an embedded table with the option on by default, a table
 refitted to self-play outcomes or a larger teacher set, and a comparison against the outside engines.
 
-The table used here (`table2.txt`) is a scratch file and is not in the repository; `PatternFile` and `PatternBlend` default to off.
+**Adopted as the default.** The table (`table2.txt`, 60,477 training positions, ridge 300) is embedded as the resource
+`src/main/resources/spamalot/gataxx/eval/pattern-table.txt`, and the engine now defaults to `PatternBlend` 50 and `PatternMargin`
+32 (`PatternFile` empty = the built-in table; `PatternBlend 0` turns it off). Final check of the packaged jar, defaults against the
+same jar with `PatternBlend=0`, `go movetime 50`, 800 games, seed 2024: **+470 =0 -330, +61.4 +/- 24.5 Elo**. The bench checksum
+changed with the default evaluation (depth 9: 224,580,569 nodes, scoresum 592, 8.5M nodes/s). Funes' score is only a teacher
+here: the table holds fitted numbers, and no Funes code was read or copied.
 
 ## Not yet measured
 

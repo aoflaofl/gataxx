@@ -2,6 +2,7 @@ package spamalot.gataxx.eval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -72,5 +73,13 @@ class PatternEvaluatorTest {
         Path ok = stoneTable(0, 0, 1);
         assertThrows(IllegalArgumentException.class, () -> PatternEvaluator.load(ok, FIXED, 1.5));
         assertThrows(IllegalArgumentException.class, () -> PatternEvaluator.load(stoneTable(0, 0, 0), FIXED, 1));
+    }
+
+    @Test
+    void theBuiltInTableLoadsAndChangesTheBaseScore() throws IOException {
+        Position pos = Position.startPos().makeMove(Move.parse("b6"));
+        int base = FIXED.evaluate(pos);
+        assertEquals(base, PatternEvaluator.builtIn(FIXED, 0).evaluate(pos));
+        assertTrue(PatternEvaluator.builtIn(FIXED, 0.5).evaluate(pos) != base);
     }
 }
