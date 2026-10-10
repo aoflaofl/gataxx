@@ -576,6 +576,9 @@ Against `QuiesceMaxPly` 5 (seed 5252, 1200 games): 3 **-58.5**, 6 **-40.7**, 7 -
 `QuiesceMaxPly` 5. The parity effect (5 beats both 4 and 6) is probably who makes the last capture before the leaf
 evaluation. Bench 9 with the new defaults: 149.9M nodes in 11.6 s, scoresum 413.
 
+Validation of the new defaults against the published 1.4.0 jar, timed 50 ms, one thread each, 1600 games, seed 4444:
+**+1075 -525, +124.5 +/- 18.1 Elo**.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
