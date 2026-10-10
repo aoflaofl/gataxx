@@ -612,6 +612,24 @@ Against Funes the gap closed by about 110-160 Elo and gataxx now loses 43-46% of
 result moved by about +70. One game in the large Funes run ended with Funes sending an illegal move (game 773, scored as a win
 for gataxx; at most 1 Elo). The test suite (225 tests) passes on this commit.
 
+## A better rule for dominated jumps in the main search (`JumpCut`)
+
+The unconditional cut of every jump to a clone-reachable square lost 75 Elo in the main search (see above). Variants against the
+1.5.0 defaults, timed 50 ms (bench 9 = depth-9 nodes on the 16 built-in positions; the defaults give 149.9M):
+
+| Rule | bench 9 nodes | Result |
+|---|---|---|
+| all dominated jumps, only at nodes with at most 1 / 2 / 3 plies left | 78.9M / 78.5M / 60.7M | +7.5 / **+28.4** / +11.0 (seed 8484, 1200 games, +/- 20); depth 2 repeated: **+21.3** (seed 6161, 1600 games, +/- 17) |
+| only dominated jumps that convert nothing (`JumpCut` 3), at every depth | 130.4M | **+18.5** (seed 8484, 1200 games) and **+36.6** (seed 6161, 1600 games, +/- 17) |
+| quiet-only everywhere plus the full cut at most 1 / 2 / 3 plies from the leaves | 67.8M / 70.6M / 55.0M | +27.9 / +22.6 / +36.6 (seed 4747, 1200 games, +/- 20) |
+| quiet-only plus full cut within 3 plies, head to head against quiet-only | | **+0.3 +/- 15.2** (seed 9898, 2000 games) |
+
+So the failure of the full cut came from the jumps that capture and from deep nodes: leaving out only the pure repositioning
+jumps (nothing converted, target adjacent to one of our stones) helps by about +20 to +35 Elo, and cutting more near the
+leaves removes half the remaining nodes without changing strength. Adopted: `JumpCut` 3 (with the unchanged `JumpCutMinEmpties`
+12 guard, so the endgame keeps every jump), the simplest rule that gets the gain. `JumpCutNear` / `JumpCutNearDepth` stay as
+options (default off) because the nodes they save were not worth strength.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

@@ -248,6 +248,10 @@ class PositionTest {
             return false;
         }
         boolean cloneReachable = (Bitboards.expand1(p.pieces(p.sideToMove())) & (1L << Move.to(move))) != 0;
+        if (mode == Position.JUMPS_CUT_QUIET_DOMINATED) {
+            boolean quiet = (Bitboards.expand1(p.pieces(1 - p.sideToMove())) & (1L << Move.to(move))) == 0;
+            return cloneReachable && quiet;
+        }
         boolean exempt = mode == Position.JUMPS_CUT_FROM_SAFE_ORIGINS && (attackable(p) & (1L << Move.from(move))) != 0;
         return cloneReachable && !exempt;
     }
@@ -266,7 +270,7 @@ class PositionTest {
             for (int ply = 0; ply < 250 && !p.isGameOver(); ply++) {
                 int nf = p.generateMoves(all, Position.JUMPS_ALL);
                 assertEquals(p.generateMoves(new int[Position.MAX_MOVES]), nf);
-                for (int mode = 1; mode <= 2; mode++) {
+                for (int mode = 1; mode <= 3; mode++) {
                     int nc = p.generateMoves(cut, mode);
                     int j = 0;
                     for (int i = 0; i < nf; i++) {

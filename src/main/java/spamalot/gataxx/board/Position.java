@@ -202,6 +202,8 @@ public final class Position {
     public static final int JUMPS_CUT_ALL_DOMINATED = 1;
     /** Mode: leave out such a jump only if the stone that jumps cannot be attacked next move. */
     public static final int JUMPS_CUT_FROM_SAFE_ORIGINS = 2;
+    /** Mode: leave out only the jumps of that kind that convert nothing (pure repositioning). */
+    public static final int JUMPS_CUT_QUIET_DOMINATED = 3;
 
     /**
      * Stones the opponent could capture next move: those adjacent to an empty square the opponent can land on. A jump to a
@@ -236,8 +238,9 @@ public final class Position {
         for (long t = clones; t != 0; t &= t - 1) {
             out[n++] = Move.clone(Long.numberOfTrailingZeros(t));
         }
-        long cut = jumpMode == JUMPS_ALL ? 0 : clones;
-        long exempt = jumpMode == JUMPS_ALL ? 0 : exemptOrigins(jumpMode);
+        long cut = jumpMode == JUMPS_ALL ? 0
+                : jumpMode == JUMPS_CUT_QUIET_DOMINATED ? clones & ~Bitboards.expand1(pieces(1 - sideToMove)) : clones;
+        long exempt = jumpMode == JUMPS_ALL || jumpMode == JUMPS_CUT_QUIET_DOMINATED ? 0 : exemptOrigins(jumpMode);
         for (long p = mine; p != 0; p &= p - 1) {
             int from = Long.numberOfTrailingZeros(p);
             long targets = Bitboards.ring2(from) & empty;
@@ -301,7 +304,7 @@ public final class Position {
             out[n++] = Move.clone(to);
         }
         // A jump to a square some stone of ours is adjacent to is dominated by the clone to that square (see generateMoves).
-        long cut = jumpMode == JUMPS_ALL ? 0 : Bitboards.expand1(mine);
+        long cut = jumpMode == JUMPS_ALL || jumpMode == JUMPS_CUT_QUIET_DOMINATED ? 0 : Bitboards.expand1(mine);
         long exempt = jumpMode == JUMPS_ALL ? 0 : exemptOrigins(jumpMode);
         for (long p = mine & Bitboards.expand2(noisy); p != 0; p &= p - 1) {
             int from = Long.numberOfTrailingZeros(p);

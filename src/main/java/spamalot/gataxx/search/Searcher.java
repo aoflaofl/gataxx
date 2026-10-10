@@ -51,6 +51,8 @@ public final class Searcher {
     private int qJumpCutFromPly;
     private int jumpMode = Position.JUMPS_ALL;
     private int jumpCutMinEmpties;
+    private int jumpNearMode = Position.JUMPS_ALL;
+    private int jumpNearDepth;
     private boolean usePvs;
     private boolean useFutility;
     private int futilityMargin = 48;
@@ -111,27 +113,38 @@ public final class Searcher {
     }
 
     /**
-     * The same cut in the main search, applied only while at least {@code minEmpties} squares are empty (near the end of a
+     * The same cuts in the main search, applied only while at least {@code minEmpties} squares are empty (near the end of a
      * game a jump can be the only way to avoid filling the board in a lost position).
      */
     public void setJumpMode(int mode, int minEmpties) {
+        setJumpMode(mode, minEmpties, mode, 0);
+    }
+
+    /**
+     * As {@link #setJumpMode(int, int)}, with a different mode, {@code nearMode}, at nodes that have at most
+     * {@code nearDepth} plies left to search (0 = none): near the leaves a quiescence search follows and the cut is cheaper.
+     */
+    public void setJumpMode(int mode, int minEmpties, int nearMode, int nearDepth) {
         checkJumpMode(mode);
-        if (minEmpties < 0) {
-            throw new IllegalArgumentException("minEmpties must not be negative");
+        checkJumpMode(nearMode);
+        if (minEmpties < 0 || nearDepth < 0) {
+            throw new IllegalArgumentException("minEmpties and nearDepth must not be negative");
         }
         this.jumpMode = mode;
         this.jumpCutMinEmpties = minEmpties;
+        this.jumpNearMode = nearMode;
+        this.jumpNearDepth = nearDepth;
     }
 
     private static void checkJumpMode(int mode) {
-        if (mode < Position.JUMPS_ALL || mode > Position.JUMPS_CUT_FROM_SAFE_ORIGINS) {
+        if (mode < Position.JUMPS_ALL || mode > Position.JUMPS_CUT_QUIET_DOMINATED) {
             throw new IllegalArgumentException("unknown jump mode " + mode);
         }
     }
 
-    private int jumpModeFor(Position pos) {
-        return jumpMode != Position.JUMPS_ALL && Long.bitCount(pos.empty()) >= jumpCutMinEmpties
-                ? jumpMode : Position.JUMPS_ALL;
+    private int jumpModeFor(Position pos, int depth) {
+        int mode = jumpNearDepth > 0 && depth <= jumpNearDepth ? jumpNearMode : jumpMode;
+        return mode != Position.JUMPS_ALL && Long.bitCount(pos.empty()) >= jumpCutMinEmpties ? mode : Position.JUMPS_ALL;
     }
 
     /**
@@ -270,7 +283,7 @@ public final class Searcher {
             tt.newSearch();
         }
         int[] rootMoves = moveBuf[0];
-        int n = root.generateMoves(rootMoves, jumpModeFor(root));
+        int n = root.generateMoves(rootMoves, Position.JUMPS_ALL);
         if (n == 0) {
             return new SearchResult(Move.NONE, terminalScore(root, 0), 0, 0, 0, new int[0]);
         }
@@ -374,7 +387,7 @@ public final class Searcher {
         }
 
         int[] moves = moveBuf[ply];
-        int n = pos.generateMoves(moves, jumpModeFor(pos));
+        int n = pos.generateMoves(moves, jumpModeFor(pos, depth));
         if (n == 0) {
             return terminalScore(pos, ply);
         }
