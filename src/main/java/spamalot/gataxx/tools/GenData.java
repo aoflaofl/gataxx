@@ -28,7 +28,7 @@ import spamalot.gataxx.search.TranspositionTable;
  *
  * <pre>
  * java -cp gataxx.jar spamalot.gataxx.tools.GenData --out data.bin [--games 10000] [--nodes 20000] [--threads 8]
- *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair FILE [--pair-blend 1.0]]
+ *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair builtin|none|FILE] [--pair-blend 0.7]
  * </pre>
  *
  * Record layout (big endian): game id (int), mine (long), theirs (long), walls (long), ply (short), search score (short, side
@@ -68,8 +68,8 @@ public final class GenData {
         int openingMax = 12;
         long seed = 1;
         int hash = 8;
-        String pair = null;
-        double pairBlend = 1.0;
+        String pair = "builtin";
+        double pairBlend = 0.7;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = Path.of(args[++i]);
@@ -91,7 +91,9 @@ public final class GenData {
         }
         Evaluator staticEvaluator = defaultEvaluator();
         Evaluator evaluator = staticEvaluator;
-        if (pair != null) {
+        if (pair.equals("builtin")) {
+            evaluator = spamalot.gataxx.eval.PairEvaluator.builtIn(staticEvaluator, pairBlend).withMargin(32);
+        } else if (!pair.equals("none")) {
             try (java.io.InputStream in = Files.newInputStream(Path.of(pair))) {
                 evaluator = spamalot.gataxx.eval.PairEvaluator.load(in, staticEvaluator, pairBlend).withMargin(32);
             }

@@ -81,7 +81,7 @@ public final class UaiEngine {
     private int jumpCutNear;
     private int iirMinDepth = 3;
     private String pairFile = "";
-    private int pairBlend = 100;
+    private int pairBlend = 70;
     private int partialIterations = 1;
     private int jumpCutNearDepth;
     private String patternFile = "";
@@ -157,7 +157,7 @@ public final class UaiEngine {
                     send("option name PatternMargin type spin default 32 min 0 max 2000");
                     send("option name Threads type spin default 1 min 1 max 64");
                     send("option name PairFile type string default <empty>");
-                    send("option name PairBlend type spin default 100 min 0 max 300");
+                    send("option name PairBlend type spin default 70 min 0 max 300");
                     send("option name IirMinDepth type spin default 3 min 0 max 20");
                     send("option name PartialIterations type spin default 1 min 0 max 1");
                     send("option name Lmr type spin default 1 min 0 max 1");
@@ -272,9 +272,7 @@ public final class UaiEngine {
             patternBlend = spinValue(name, value, 0, 100);
         } else if (name.equalsIgnoreCase("PairFile")) {
             pairFile = value.equals("<empty>") ? "" : value;
-            if (!pairFile.isEmpty()) {
-                newEvaluator(); // validates the file now
-            }
+            newEvaluator(); // validates the file now
         } else if (name.equalsIgnoreCase("PairBlend")) {
             pairBlend = spinValue(name, value, 0, 300);
         } else if (name.equalsIgnoreCase("IirMinDepth")) {
@@ -419,11 +417,20 @@ public final class UaiEngine {
         if (patternBlend > 0) {
             evaluator = patternEvaluatorFor(evaluator, patternBlend / 100.0);
         }
-        if (!pairFile.isEmpty() && pairBlend > 0) {
-            try (java.io.InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Path.of(pairFile))) {
-                evaluator = spamalot.gataxx.eval.PairEvaluator.load(in, evaluator, pairBlend / 100.0).withMargin(patternMargin);
+        if (pairBlend > 0) {
+            try {
+                spamalot.gataxx.eval.PairEvaluator pe;
+                if (pairFile.isEmpty()) {
+                    pe = spamalot.gataxx.eval.PairEvaluator.builtIn(evaluator, pairBlend / 100.0);
+                } else {
+                    try (java.io.InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Path.of(pairFile))) {
+                        pe = spamalot.gataxx.eval.PairEvaluator.load(in, evaluator, pairBlend / 100.0);
+                    }
+                }
+                evaluator = pe.withMargin(patternMargin);
             } catch (java.io.IOException | RuntimeException e) {
-                throw new IllegalArgumentException("cannot load pair table '" + pairFile + "': " + e.getMessage(), e);
+                throw new IllegalArgumentException("cannot load pair table '" + (pairFile.isEmpty() ? "built-in" : pairFile)
+                        + "': " + e.getMessage(), e);
             }
         }
         return evaluator;

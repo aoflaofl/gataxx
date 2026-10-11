@@ -60,7 +60,7 @@ class UaiEngineTest {
         assertEquals("option name PatternMargin type spin default 32 min 0 max 2000", out.get(21));
         assertEquals("option name Threads type spin default 1 min 1 max 64", out.get(22));
         assertEquals("option name PairFile type string default <empty>", out.get(23));
-        assertEquals("option name PairBlend type spin default 100 min 0 max 300", out.get(24));
+        assertEquals("option name PairBlend type spin default 70 min 0 max 300", out.get(24));
         assertEquals("option name IirMinDepth type spin default 3 min 0 max 20", out.get(25));
         assertEquals("option name PartialIterations type spin default 1 min 0 max 1", out.get(26));
         assertEquals("option name Lmr type spin default 1 min 0 max 1", out.get(27));
@@ -126,8 +126,8 @@ class UaiEngineTest {
     @Test
     void quiescenceOptionsChangeTheSearch() {
         String pos = "position fen o6/o6/o3x2/6o/2x1x2/3x3/7 x 0 9\n";
-        String plain = bestmove(run("setoption name PatternBlend value 0\nsetoption name QuiesceMinCaptures value 0\n" + pos + "go depth 1\n"));
-        String withQ = bestmove(run("setoption name PatternBlend value 0\nsetoption name QuiesceMinCaptures value 2\nsetoption name QuiesceMaxPly value 6\n"
+        String plain = bestmove(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 0\n" + pos + "go depth 1\n"));
+        String withQ = bestmove(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 2\nsetoption name QuiesceMaxPly value 6\n"
                 + pos + "go depth 1\n"));
         assertEquals("c3b5", plain);
         assertEquals("f3", withQ);
@@ -137,7 +137,7 @@ class UaiEngineTest {
     void theBuiltInPatternTableIsOnByDefault() {
         String go = "position startpos moves b6\ngo depth 2\n";
         int byDefault = scoreAtDepth(run(go), 2);
-        int off = scoreAtDepth(run("setoption name PatternBlend value 0\n" + go), 2);
+        int off = scoreAtDepth(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
         assertTrue(byDefault != off, byDefault + " vs " + off);
     }
 
@@ -145,7 +145,7 @@ class UaiEngineTest {
     void tempoOptionShiftsReportedScore() {
         // At depth 1 the root score is minus the opponent's static score, so tempo lowers it by exactly that bonus.
         // 32 units = 2 pieces = 200 centipieces.
-        String script = "setoption name PatternBlend value 0\nposition startpos\ngo depth 1\n";
+        String script = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nposition startpos\ngo depth 1\n";
         int base = firstScore(run("setoption name Tempo value 0\n" + script));
         assertEquals(base - 200, firstScore(run("setoption name Tempo value 32\n" + script)));
         assertEquals(base - 100, firstScore(run("setoption name Tempo value 16\n" + script)));
@@ -160,7 +160,7 @@ class UaiEngineTest {
     @Test
     void evalWeightOptionsAcceptNegativesAndChangeScores() {
         String script = "position fen 6o/7/7/7/7/-x5/xx5 x 0 1\ngo depth 1\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
+        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
         int plain = firstScore(run(base + script));
         int safe = firstScore(run(base + "setoption name EvalSafe value 16\n" + script));
         int unsafe = firstScore(run(base + "setoption name EvalSafe value -16\n" + script));
@@ -175,7 +175,7 @@ class UaiEngineTest {
     void newEvalWeightOptionsChangeScores() {
         // A busy mid-game position searched to depth 3: every feature has something to measure there.
         String script = "position startpos moves b6 a1a3 f2 g7e5 b5 e5c5 f3\ngo depth 3\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
+        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
                 + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
         int plain = scoreAtDepth(run(base + script), 3);
         for (String opt : new String[] {"EvalReach", "EvalTerritory", "EvalEdge", "EvalRing1",
@@ -189,7 +189,7 @@ class UaiEngineTest {
     void cornerOptionChangesScoreWhereACornerCanBeTaken() {
         // x on b1 can clone into the empty corner a1; o holds no corner, so taking it changes the corner difference.
         String script = "position fen 5o1/7/7/7/7/7/1x5 x 0 1\ngo depth 1\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
+        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
                 + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
         int plain = scoreAtDepth(run(base + script), 1);
         int withCorner = scoreAtDepth(run(base + "setoption name EvalCorner value 32\n" + script), 1);
@@ -222,10 +222,10 @@ class UaiEngineTest {
         java.nio.file.Path f = dir.resolve("t.txt");
         java.nio.file.Files.write(f, table);
         String go = "position startpos moves b6\ngo depth 2\n";
-        int plain = scoreAtDepth(run("setoption name PatternBlend value 0\n" + go), 2);
+        int plain = scoreAtDepth(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
         int blended = scoreAtDepth(run("setoption name PatternFile value " + f + "\nsetoption name PatternBlend value 100\n" + go), 2);
         assertTrue(plain != blended, plain + " vs " + blended);
-        int zero = scoreAtDepth(run("setoption name PatternFile value " + f + "\nsetoption name PatternBlend value 0\n" + go), 2);
+        int zero = scoreAtDepth(run("setoption name PatternFile value " + f + "\nsetoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
         assertEquals(plain, zero, "blend 0 leaves the engine unchanged");
         List<String> bad = run("setoption name PatternFile value /no/such/file.txt\nisready\n");
         assertTrue(bad.get(0).startsWith("info string error: cannot load pattern table"), bad.toString());

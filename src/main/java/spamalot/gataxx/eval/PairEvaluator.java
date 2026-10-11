@@ -43,6 +43,19 @@ public final class PairEvaluator implements Evaluator {
         this.blend = blend;
     }
 
+    /** Resource holding the weights that ship with the engine. */
+    static final String BUILT_IN = "pair-patterns.bin";
+
+    /** Loads the weights that ship inside the jar. */
+    public static PairEvaluator builtIn(Evaluator base, double blend) throws IOException {
+        try (InputStream in = PairEvaluator.class.getResourceAsStream(BUILT_IN)) {
+            if (in == null) {
+                throw new IOException("built-in pair-pattern weights are missing from the jar");
+            }
+            return load(in, base, blend);
+        }
+    }
+
     /** Loads a weight file written by {@code PairFit}. */
     public static PairEvaluator load(InputStream in, Evaluator base, double blend) throws IOException {
         try (DataInputStream d = new DataInputStream(new BufferedInputStream(in))) {
