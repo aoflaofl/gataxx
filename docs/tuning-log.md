@@ -690,6 +690,24 @@ Checks of the installed table: against the previous `main` directly (old table, 
 comparisons with the old table (+23.8, +25.1, +13.6) pool to about +20 +/- 9. The gains over 1.5.0 (jump cut about +24 on its
 own, refit about +20) did not visibly add in that one 2000-game match; its error bar (+/- 15) covers both.
 
+## Second refit round: more data, longer teacher
+
+Same recipe once more, now with positions from the engine that plays with the first refit table: 48,000 game records at
+10,000-40,000 nodes per move, 171,132 quiet positions scored by Funes at 100 ms instead of 30 (16 workers, 18 minutes),
+129,472 usable. The 100 ms scores are harder to predict (the base evaluation alone explains 0.331 of their variance, against
+0.352 for the 30 ms data). Tables against the previous built-in table, timed 50 ms (seed 6363, 1200 games, +/- 20):
+
+| Table | Result |
+|---|---|
+| A: new 100 ms data only, blend 50 | +6.9 |
+| A, blend 65 | +1.7 |
+| B: new data pooled with the earlier 30 ms data (253,582 positions), blend 50 | **+29.6** |
+
+B on a fresh seed (4141, 2000 games, +/- 15): **+1083 -917, +28.9**. So more data helped and a longer teacher alone did not: the
+table fitted only to the 100 ms scores was no better than the old one, while the pooled fit (two position distributions, two
+teacher speeds) gained about +29. Installed B as the built-in table: ridge 100, 253,582 positions. Bench 9: 76.1M nodes
+(107.1M before), scoresum 515.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
