@@ -11,41 +11,49 @@ import spamalot.gataxx.board.Position;
  * The weights were learned as a residual of that base evaluation by {@code tools.PairFit}. Stateless apart from its
  * thread-local scratch space, so one instance can serve every search thread.
  *
- * <p>File format (big endian): magic {@code "PAIR"}, version (int), tempo bonus (short, 1/{@link #WEIGHT_SCALE} unit), number of
- * stored classes (int), then per class its canonical key (int) and weight (short, 1/{@link #WEIGHT_SCALE} unit). Weights of
+ * <p>File format (big endian): magic {@code "PAIR"}, version (int, 2), steps per unit (int), tempo bonus (short, in steps),
+ * number of stored classes (int), then per class its canonical key (int) and weight (short, in steps). Version 1 has no
+ * steps field and 8 steps per unit. Weights of
  * patterns that are symmetric images of each other are equal, so only one representative of each class is stored.
  */
 public final class PairEvaluator implements Evaluator {
-    /** Stored weights are in this many steps per evaluation unit. */
-    public static final int WEIGHT_SCALE = 8;
-    private static final int MAGIC = 0x50414952;
-    private static final int VERSION = 1;
+    /** Stored weights are in this many steps per evaluation unit (written by {@code PairFit}; the file header has its own). */
+    public static final int WEIGHT_SCALE = 32;
+    public static final int MAGIC = 0x50414952;
+    public static final int VERSION = 2;
 
     private final Evaluator base;
     private final short[] weights;
     private final int tempo;
+    private final int scale;
     private final double blend;
     private int margin;
 
     private final ThreadLocal<int[]> blocks = ThreadLocal.withInitial(() -> new int[49]);
     private final ThreadLocal<int[]> patterns = ThreadLocal.withInitial(() -> new int[PairPatterns.PLACEMENTS]);
 
-    private PairEvaluator(Evaluator base, short[] weights, int tempo, double blend) {
+    private PairEvaluator(Evaluator base, short[] weights, int tempo, int scale, double blend) {
         if (blend < 0) {
             throw new IllegalArgumentException("blend must not be negative");
         }
         this.base = base;
         this.weights = weights;
         this.tempo = tempo;
+        this.scale = scale;
         this.blend = blend;
     }
 
     /** Loads a weight file written by {@code PairFit}. */
     public static PairEvaluator load(InputStream in, Evaluator base, double blend) throws IOException {
         try (DataInputStream d = new DataInputStream(new BufferedInputStream(in))) {
-            if (d.readInt() != MAGIC || d.readInt() != VERSION) {
+            if (d.readInt() != MAGIC) {
                 throw new IOException("not a pair-pattern weight file");
             }
+            int version = d.readInt();
+            if (version != 1 && version != VERSION) {
+                throw new IOException("unsupported pair-pattern file version " + version);
+            }
+            int scale = version == 1 ? 8 : d.readInt();
             int tempo = d.readShort();
             int classes = d.readInt();
             short[] w = new short[PairPatterns.PLACEMENTS * PairPatterns.INDEX_SIZE];
@@ -58,7 +66,7 @@ public final class PairEvaluator implements Evaluator {
                     w[image] = weight;
                 }
             }
-            return new PairEvaluator(base, w, tempo, blend);
+            return new PairEvaluator(base, w, tempo, scale, blend);
         }
     }
 
@@ -90,6 +98,6 @@ public final class PairEvaluator implements Evaluator {
         for (int i = 0; i < PairPatterns.PLACEMENTS; i++) {
             sum += weights[i << 16 | p[i]];
         }
-        return (int) Math.round(blend * sum / WEIGHT_SCALE);
+        return (int) Math.round(blend * sum / scale);
     }
 }

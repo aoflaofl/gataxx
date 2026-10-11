@@ -28,7 +28,7 @@ import spamalot.gataxx.search.TranspositionTable;
  *
  * <pre>
  * java -cp gataxx.jar spamalot.gataxx.tools.GenData --out data.bin [--games 10000] [--nodes 20000] [--threads 8]
- *     [--opening-min 6] [--opening-max 12] [--seed 1] [--evaluator FILE --blend 65]
+ *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair FILE [--pair-blend 1.0]]
  * </pre>
  *
  * Record layout (big endian): game id (int), mine (long), theirs (long), walls (long), ply (short), search score (short, side
@@ -49,6 +49,8 @@ public final class GenData {
         s.setLmr(true, 3, 4);
         s.setLmrDeep(6);
         s.setJumpMode(Position.JUMPS_CUT_QUIET_DOMINATED, 12, Position.JUMPS_ALL, 0);
+        s.setIir(3);
+        s.setPartialIterations(true);
         return s;
     }
 
@@ -66,6 +68,8 @@ public final class GenData {
         int openingMax = 12;
         long seed = 1;
         int hash = 8;
+        String pair = null;
+        double pairBlend = 1.0;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = Path.of(args[++i]);
@@ -76,6 +80,8 @@ public final class GenData {
                 case "--opening-max" -> openingMax = Integer.parseInt(args[++i]);
                 case "--seed" -> seed = Long.parseLong(args[++i]);
                 case "--hash" -> hash = Integer.parseInt(args[++i]);
+                case "--pair" -> pair = args[++i];
+                case "--pair-blend" -> pairBlend = Double.parseDouble(args[++i]);
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
             }
         }
@@ -83,7 +89,15 @@ public final class GenData {
             System.err.println("usage: GenData --out FILE [--games N] [--nodes N] [--threads N] [--opening-min N] [--opening-max N] [--seed N]");
             System.exit(2);
         }
-        Evaluator evaluator = defaultEvaluator();
+        Evaluator staticEvaluator = defaultEvaluator();
+        Evaluator evaluator = staticEvaluator;
+        if (pair != null) {
+            try (java.io.InputStream in = Files.newInputStream(Path.of(pair))) {
+                evaluator = spamalot.gataxx.eval.PairEvaluator.load(in, staticEvaluator, pairBlend).withMargin(32);
+            }
+        }
+        final Evaluator searchEvaluator = evaluator;
+        final Evaluator recordedEvaluator = staticEvaluator;
         final int fGames = games;
         final int fNodes = nodes;
         final int fMin = openingMin;
@@ -101,7 +115,7 @@ public final class GenData {
                     int g;
                     while ((g = nextGame.getAndIncrement()) < fGames) {
                         SplittableRandom rnd = new SplittableRandom(fSeed * 1_000_003L + g);
-                        byte[] game = playGame(g, evaluator, tt, rnd, fNodes, fMin, fMax);
+                        byte[] game = playGame(g, searchEvaluator, recordedEvaluator, tt, rnd, fNodes, fMin, fMax);
                         synchronized (file) {
                             try {
                                 file.write(game);
@@ -126,7 +140,7 @@ public final class GenData {
                 (System.nanoTime() - start) / 1e9);
     }
 
-    private static byte[] playGame(int id, Evaluator evaluator, TranspositionTable tt, SplittableRandom rnd, int nodes,
+    private static byte[] playGame(int id, Evaluator evaluator, Evaluator staticEval, TranspositionTable tt, SplittableRandom rnd, int nodes,
             int openingMin, int openingMax) throws IllegalStateException {
         tt.clear();
         Position pos = Position.startPos();
@@ -147,7 +161,7 @@ public final class GenData {
             }
             int side = pos.sideToMove();
             int score = Math.max(-3000, Math.min(3000, r.score()));
-            int stat = Math.max(-3000, Math.min(3000, evaluator.evaluate(pos)));
+            int stat = Math.max(-3000, Math.min(3000, staticEval.evaluate(pos)));
             recorded.add(new long[] {pos.pieces(side), pos.pieces(1 - side), pos.walls(), ply, score, side, stat});
             pos = pos.makeMove(best);
             ply++;

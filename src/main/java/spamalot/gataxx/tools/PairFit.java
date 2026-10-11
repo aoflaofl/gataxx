@@ -263,8 +263,9 @@ public final class PairFit {
                     entries.add(new int[] {classKeys.get(c), q});
                 }
             }
-            o.writeInt(0x50414952);
-            o.writeInt(1);
+            o.writeInt(PairEvaluator.MAGIC);
+            o.writeInt(PairEvaluator.VERSION);
+            o.writeInt(PairEvaluator.WEIGHT_SCALE);
             o.writeShort((int) Math.round(best[classes] * PairEvaluator.WEIGHT_SCALE));
             o.writeInt(entries.size());
             for (int[] e : entries) {

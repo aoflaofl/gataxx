@@ -97,8 +97,9 @@ class PairPatternsTest {
     void evaluatorReadsTempoAndClassWeights() throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream o = new DataOutputStream(bytes)) {
-            o.writeInt(0x50414952);
-            o.writeInt(1);
+            o.writeInt(PairEvaluator.MAGIC);
+            o.writeInt(PairEvaluator.VERSION);
+            o.writeInt(PairEvaluator.WEIGHT_SCALE);
             o.writeShort(2 * PairEvaluator.WEIGHT_SCALE); // tempo of two units
             o.writeInt(0);
         }
@@ -113,8 +114,9 @@ class PairPatternsTest {
         PairPatterns.patterns(1L, 0, 0, blocks, pat);
         int key = PairPatterns.canonicalKey(0, pat[0]);
         try (DataOutputStream o = new DataOutputStream(withClass)) {
-            o.writeInt(0x50414952);
-            o.writeInt(1);
+            o.writeInt(PairEvaluator.MAGIC);
+            o.writeInt(PairEvaluator.VERSION);
+            o.writeInt(PairEvaluator.WEIGHT_SCALE);
             o.writeShort(0);
             o.writeInt(1);
             o.writeInt(key);
