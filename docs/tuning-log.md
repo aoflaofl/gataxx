@@ -744,6 +744,15 @@ Moonbird needed two accommodations in `tools.Match` / `UaiClient` (the script `s
 
 Funes again sent an illegal move in one of the 1200 games (game 587, scored as a win for gataxx; at most 1 Elo).
 
+## Moonbird as a teacher
+
+**Licence.** Moonbird (github.com/tsoj/Moonbird, Nim) publishes no licence: the repository has no licence file (GitHub's licence
+detection returns none), its README states no terms, and the author's releases (0.0.1, 1.0.0, 1.1.0, binaries for Linux, macOS
+and Windows) are public. With no licence the author keeps all rights, so nothing of Moonbird may be copied, modified or
+redistributed, and none of it is: no Moonbird source was read, and the binary is not in this repository (it is git-ignored).
+The project owner, informed of this, decided to use it as a black-box teacher, as was done with Funes: the released binary is
+run and only the scores it prints for positions are recorded and fitted. The resulting table consists of fitted numbers.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
