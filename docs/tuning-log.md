@@ -753,6 +753,28 @@ redistributed, and none of it is: no Moonbird source was read, and the binary is
 The project owner, informed of this, decided to use it as a black-box teacher, as was done with Funes: the released binary is
 run and only the scores it prints for positions are recorded and fitted. The resulting table consists of fitted numbers.
 
+**Data.** The same two position sets as the Funes refits (24,000 distinct games from earlier engines, and 24,000 from the engine
+with the first refit table), each position scored by Moonbird at 50 ms per position (depth 12-16; 16 workers, about 7 minutes per
+set): 163,763 + 171,132 quiet positions, none skipped, 255,731 usable (|score| <= 3000; Moonbird's scores have sd 382 against
+Funes' 600). On the 163,763 positions both teachers scored, the two disagree a lot: correlation 0.60, same sign of the score
+in only 64% of positions (123,017 of them within +/-3000 for both).
+
+**Fit.** Plain ridge fit to the pooled Moonbird scores (ridge 30; ridge 30/100/300/1000 gave held-out R^2 0.356 / 0.356 / 0.354
+/ 0.347). Held-out R^2 against Moonbird's score: base evaluation alone 0.253; the previous built-in table blended at 0.5
+0.304; the new table alone 0.356.
+
+**Play** (timed 50 ms against the build with the Funes-fitted built-in table at blend 50, each table at the blend shown):
+
+| Moonbird-fitted table, blend | Result |
+|---|---|
+| 50 | +14.5 +/- 19.7 (seed 7272, 1200 games) |
+| 65 | **+33.7 +/- 19.8** (seed 7272, 1200 games); **+28.9 +/- 15.3** (seed 8383, 2000 games) |
+| 80 | +23.2 +/- 19.7 (seed 8384, 1200 games) |
+| 100 | +16.2 +/- 19.7 (seed 8384, 1200 games) |
+
+Adopted: this table as the built-in table, with `PatternBlend` 65 (was 50). The depth-9 bench falls to 44.7M nodes
+(76.1M before), scoresum 476. The test that checks the hand-weight options now pins `PatternBlend 0`.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

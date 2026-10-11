@@ -81,7 +81,7 @@ public final class UaiEngine {
     private int jumpCutNear;
     private int jumpCutNearDepth;
     private String patternFile = "";
-    private int patternBlend = 50;
+    private int patternBlend = 65;
     private int patternMargin = 32;
     private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
@@ -149,7 +149,7 @@ public final class UaiEngine {
                     send("option name FutilityMargin type spin default 48 min 0 max 1000");
                     send("option name FutilityDepth type spin default 2 min 1 max 6");
                     send("option name PatternFile type string default <empty>");
-                    send("option name PatternBlend type spin default 50 min 0 max 100");
+                    send("option name PatternBlend type spin default 65 min 0 max 100");
                     send("option name PatternMargin type spin default 32 min 0 max 2000");
                     send("option name Threads type spin default 1 min 1 max 64");
                     send("option name Lmr type spin default 1 min 0 max 1");

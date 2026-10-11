@@ -56,7 +56,7 @@ class UaiEngineTest {
         assertEquals("option name FutilityMargin type spin default 48 min 0 max 1000", out.get(17));
         assertEquals("option name FutilityDepth type spin default 2 min 1 max 6", out.get(18));
         assertEquals("option name PatternFile type string default <empty>", out.get(19));
-        assertEquals("option name PatternBlend type spin default 50 min 0 max 100", out.get(20));
+        assertEquals("option name PatternBlend type spin default 65 min 0 max 100", out.get(20));
         assertEquals("option name PatternMargin type spin default 32 min 0 max 2000", out.get(21));
         assertEquals("option name Threads type spin default 1 min 1 max 64", out.get(22));
         assertEquals("option name Lmr type spin default 1 min 0 max 1", out.get(23));
@@ -156,7 +156,7 @@ class UaiEngineTest {
     @Test
     void evalWeightOptionsAcceptNegativesAndChangeScores() {
         String script = "position fen 6o/7/7/7/7/-x5/xx5 x 0 1\ngo depth 1\n";
-        String base = "setoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
+        String base = "setoption name PatternBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
         int plain = firstScore(run(base + script));
         int safe = firstScore(run(base + "setoption name EvalSafe value 16\n" + script));
         int unsafe = firstScore(run(base + "setoption name EvalSafe value -16\n" + script));
