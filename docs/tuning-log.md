@@ -862,6 +862,23 @@ positions), alone or pooled with round 1 (29M positions), gave tables no better 
 (round 2 alone) against it (1200 games, +/- 20). At this feature set more data and stronger-engine data are no longer what
 limits the evaluation.
 
+### Graded futility reduction (`FutilityReduction`)
+
+The description names a depth reduction from the child's static evaluation: from the second move on, a child scoring below
+alpha is searched shallower in proportion to the deficit, and skipped when its depth runs out. (Our earlier hard-margin
+futility pruning, tested before the pair evaluator, never helped.) Implemented as `(alpha - static) / div` extra plies, a
+re-search at full depth if the reduced search beats alpha, and a skip when `depth - 1 - reductions <= 0`. Depth-9 bench: 29.4M
+nodes without, 8.7M at `div` 35, 21.2M at 70. Timed 50 ms against the build without it (1200 games, +/- 21):
+
+| `FutilityReduction` | Result |
+|---|---|
+| 70 / 50 / 35 | +86.3 / +104.4 / +122.4 (seed 9090) |
+| 24 | **+139.0** (seed 9090); **+123.7** (seed 1010) |
+| 16 / 12 / 8 | +120.4 / +123.7 / +68.0 (seed 1010) |
+
+Adopted: 24 (a plateau from 12 to 35; 8 is too aggressive). Against Moonbird, which reaches depth 12-13 with 3 to 16 times
+fewer nodes than we need for depth 8-9, this is the largest single search difference found.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

@@ -53,6 +53,7 @@ public final class Searcher {
     private int jumpCutMinEmpties;
     private int jumpNearMode = Position.JUMPS_ALL;
     private int iirMinDepth;
+    private int futilityReductionDiv;
     private boolean usePartialIterations;
     private int jumpNearDepth;
     private boolean usePvs;
@@ -168,6 +169,19 @@ public final class Searcher {
      */
     public void setPartialIterations(boolean enabled) {
         this.usePartialIterations = enabled;
+    }
+
+    /**
+     * Graded futility reduction: from the second move on, a move whose child's static score (from our side) is below alpha is
+     * searched {@code (alpha - score) / div} plies shallower, in addition to any late-move reduction; a move whose depth
+     * runs out that way is not searched at all. A reduced search that nevertheless beats alpha is repeated at full depth.
+     * 0 turns it off (the default).
+     */
+    public void setFutilityReduction(int div) {
+        if (div < 0) {
+            throw new IllegalArgumentException("div must not be negative");
+        }
+        this.futilityReductionDiv = div;
     }
 
     /**
@@ -450,6 +464,20 @@ public final class Searcher {
                 int reduction = 0;
                 if (reduce) {
                     reduction = lmrDeepMoves > 0 && i >= lmrDeepMoves && depth >= lmrMinDepth + 1 ? 2 : 1;
+                }
+                if (futilityReductionDiv > 0 && move != Move.PASS && alpha > -(WIN - MAX_PLY) && alpha < WIN - MAX_PLY
+                        && !child.isGameOver()) {
+                    int ours = -evaluator.evaluate(child, -alpha - 1, -alpha);
+                    if (ours < alpha) {
+                        int extra = (alpha - ours) / futilityReductionDiv;
+                        if (extra > 0) {
+                            if (depth - 1 - reduction - extra <= 0) {
+                                continue;
+                            }
+                            reduction += extra;
+                            reduce = true;
+                        }
+                    }
                 }
                 score = -negamax(child, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1, false, true);
                 if (!aborted && reduce && score > alpha) {

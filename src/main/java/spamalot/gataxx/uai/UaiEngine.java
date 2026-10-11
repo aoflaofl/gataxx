@@ -80,6 +80,7 @@ public final class UaiEngine {
     private int jumpCutMinEmpties = 12;
     private int jumpCutNear;
     private int iirMinDepth = 3;
+    private int futilityReduction = 24;
     private String pairFile = "";
     private int pairBlend = 70;
     private int partialIterations = 1;
@@ -159,6 +160,7 @@ public final class UaiEngine {
                     send("option name PairFile type string default <empty>");
                     send("option name PairBlend type spin default 70 min 0 max 300");
                     send("option name IirMinDepth type spin default 3 min 0 max 20");
+                    send("option name FutilityReduction type spin default 24 min 0 max 500");
                     send("option name PartialIterations type spin default 1 min 0 max 1");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
@@ -275,6 +277,8 @@ public final class UaiEngine {
             newEvaluator(); // validates the file now
         } else if (name.equalsIgnoreCase("PairBlend")) {
             pairBlend = spinValue(name, value, 0, 300);
+        } else if (name.equalsIgnoreCase("FutilityReduction")) {
+            futilityReduction = spinValue(name, value, 0, 500);
         } else if (name.equalsIgnoreCase("IirMinDepth")) {
             iirMinDepth = spinValue(name, value, 0, 20);
         } else if (name.equalsIgnoreCase("PartialIterations")) {
@@ -447,6 +451,7 @@ public final class UaiEngine {
         s.setQuiescenceJumpMode(quiesceJumpCut, quiesceJumpCutFromPly);
         s.setJumpMode(jumpCut, jumpCutMinEmpties, jumpCutNear, jumpCutNearDepth);
         s.setIir(iirMinDepth);
+        s.setFutilityReduction(futilityReduction);
         s.setPartialIterations(partialIterations == 1);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
