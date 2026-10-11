@@ -23,6 +23,7 @@ public final class UaiClient implements Player {
     private final BlockingQueue<String> lines = new LinkedBlockingQueue<>();
     private volatile boolean healthy = true;
     private String name = "unknown";
+    private boolean fenOnly;
 
     private UaiClient(Process process) {
         this.process = process;
@@ -40,6 +41,29 @@ public final class UaiClient implements Player {
         }, "uai-reader");
         reader.setDaemon(true);
         reader.start();
+    }
+
+    /**
+     * Send every position as a bare FEN, with the moves already applied, instead of {@code fen ... moves ...}. For engines whose
+     * move-list parsing is unreliable (Moonbird rejects the second move of any list).
+     */
+    public void setFenOnly(boolean fenOnly) {
+        this.fenOnly = fenOnly;
+    }
+
+    private String positionCommand(Position start, List<String> moves) {
+        if (fenOnly) {
+            Position p = start;
+            for (String m : moves) {
+                p = p.makeMove(spamalot.gataxx.board.Move.parse(m));
+            }
+            return "position fen " + p.toFen();
+        }
+        StringBuilder pos = new StringBuilder("position fen ").append(start.toFen());
+        if (!moves.isEmpty()) {
+            pos.append(" moves ").append(String.join(" ", moves));
+        }
+        return pos.toString();
     }
 
     /** Launches {@code command} and performs the UAI handshake. */
@@ -83,11 +107,7 @@ public final class UaiClient implements Player {
      */
     public Scored bestMoveWithScore(Position start, List<String> moves, String go, long timeoutMs)
             throws IOException, TimeoutException {
-        StringBuilder pos = new StringBuilder("position fen ").append(start.toFen());
-        if (!moves.isEmpty()) {
-            pos.append(" moves ").append(String.join(" ", moves));
-        }
-        send(pos.toString());
+        send(positionCommand(start, moves));
         send("go " + go);
         List<String> seen = new java.util.ArrayList<>();
         try {
@@ -145,11 +165,7 @@ public final class UaiClient implements Player {
     @Override
     public String bestMove(Position start, List<String> moves, String go, long timeoutMs)
             throws IOException, TimeoutException {
-        StringBuilder pos = new StringBuilder("position fen ").append(start.toFen());
-        if (!moves.isEmpty()) {
-            pos.append(" moves ").append(String.join(" ", moves));
-        }
-        send(pos.toString());
+        send(positionCommand(start, moves));
         send("go " + go);
         try {
             String line = waitFor("bestmove ", timeoutMs);

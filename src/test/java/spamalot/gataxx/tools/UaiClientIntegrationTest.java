@@ -37,6 +37,22 @@ class UaiClientIntegrationTest {
     }
 
     @Test
+    void fenOnlyModeSendsPositionsWithoutMoveLists() throws Exception {
+        try (UaiClient c = UaiClient.start(engineCommand())) {
+            c.setFenOnly(true);
+            Position start = Position.startPos();
+            List<String> moves = List.of("b6", "f6", "a6");
+            Position now = start;
+            for (String m : moves) {
+                now = now.makeMove(Move.parse(m));
+            }
+            String best = c.bestMove(start, moves, "depth 2", 10_000);
+            assertTrue(now.isLegal(Move.parse(best)), best);
+            assertTrue(c.isHealthy());
+        }
+    }
+
+    @Test
     void setOptionsReachTheEngine() throws Exception {
         try (UaiClient c = UaiClient.start(engineCommand())) {
             c.setOption("Hash", "1");

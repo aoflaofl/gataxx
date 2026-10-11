@@ -197,6 +197,7 @@ public final class Match {
               --go1 ARGS / --go2 ARGS   per-engine 'go' arguments, overriding the above, e.g. "depth 4"
               --opt1 NAME=VALUE         UAI option to set on engine 1 at startup (repeatable), e.g. Hash=64
               --opt2 NAME=VALUE         likewise for engine 2
+              --fen-only1, --fen-only2  send that engine each position as a bare FEN, never with a move list (Moonbird)
               --concurrency N           games played in parallel (default 1)
               --opening-plies N         random plies in each opening (default 4)
               --seed N                  opening seed (default 1)
@@ -212,9 +213,10 @@ public final class Match {
         return new String[] {text.substring(0, eq), text.substring(eq + 1)};
     }
 
-    private static UaiClient startWithOptions(List<String> command, List<String[]> options)
+    private static UaiClient startWithOptions(List<String> command, List<String[]> options, boolean fenOnly)
             throws IOException, TimeoutException {
         UaiClient client = UaiClient.start(command);
+        client.setFenOnly(fenOnly);
         try {
             for (String[] o : options) {
                 client.setOption(o[0], o[1]);
@@ -240,6 +242,8 @@ public final class Match {
         long grace = 1000;
         List<String[]> opts1 = new ArrayList<>();
         List<String[]> opts2 = new ArrayList<>();
+        boolean fenOnly1 = false;
+        boolean fenOnly2 = false;
         try {
             for (int i = 0; i < args.length; i++) {
                 switch (args[i]) {
@@ -261,6 +265,8 @@ public final class Match {
                     case "--grace" -> grace = Long.parseLong(args[++i]);
                     case "--opt1" -> opts1.add(parseOption(args[++i]));
                     case "--opt2" -> opts2.add(parseOption(args[++i]));
+                    case "--fen-only1" -> fenOnly1 = true;
+                    case "--fen-only2" -> fenOnly2 = true;
                     case "--out" -> out = args[++i];
                     default -> throw new IllegalArgumentException("unknown option " + args[i]);
                 }
@@ -279,7 +285,9 @@ public final class Match {
         List<String> command2 = Arrays.asList(cmd2.trim().split("\\s+"));
         Config cfg = new Config(games, go1 != null ? go1 : common, go2 != null ? go2 : common,
                 grace, concurrency, plies, seed);
-        MatchResult m = run(cfg, () -> startWithOptions(command1, opts1), () -> startWithOptions(command2, opts2),
+        final boolean fen1 = fenOnly1;
+        final boolean fen2 = fenOnly2;
+        MatchResult m = run(cfg, () -> startWithOptions(command1, opts1, fen1), () -> startWithOptions(command2, opts2, fen2),
                 line -> {
                     synchronized (System.out) {
                         System.out.println(line);
