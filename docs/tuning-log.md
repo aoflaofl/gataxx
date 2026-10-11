@@ -708,6 +708,9 @@ table fitted only to the 100 ms scores was no better than the old one, while the
 teacher speeds) gained about +29. Installed B as the built-in table: ridge 100, 253,582 positions. Bench 9: 76.1M nodes
 (107.1M before), scoresum 515.
 
+Validation against the published 1.5.0 jar (timed 50 ms, one thread each, seed 5656, 2000 games): **+1173 -827, +60.7 +/- 15.5
+Elo**. The suite (225 tests) passes.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
