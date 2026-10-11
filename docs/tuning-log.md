@@ -825,6 +825,43 @@ tempo term. Of the search items, some were tried here before (history, null-move
 Adopted: `IirMinDepth` 3 (a node of 3 or more plies left with no table move is searched one ply shallower; depth-9 bench 44.7M
 to 43.4M nodes but a much better table-move hit rate) and `PartialIterations` 1.
 
+Validation of those two defaults against the 1.6.0-equivalent build (timed 50 ms, seed 3030, 2000 games): **+1188 -812, +66.1
++/- 15.5 Elo**.
+
+### A learned pair-pattern evaluation (`PairPatterns`, `PairEvaluator`, `GenData`, `PairFit`)
+
+Following the description of the evaluation: the exact contents of pairs of 2x2 blocks. Each square is empty, own, the
+opponent's or a wall; a 2x2 block is a base-four number (a block with no piece counts as 0); a placement is two blocks side by
+side (4x2), one above the other (2x4) or touching at a corner in either diagonal direction: 24 + 24 + 16 + 16 = 80 placements,
+65,536 patterns and a weight each. The board's eight symmetries are tied (584,300 classes of 5.2M entries; `PairPatternsTest`
+checks that a position and each of its images get the same tied sum, walls included). The weights are a residual on the
+engine's own static evaluation (hand-weighted features plus the first pattern table): `E = static + sum of 80 weights +
+tempo`, `p = 1 / (1 + exp(-E / 100))`, trained by logistic regression on self-play against a target that is half the game
+result and half the search score squashed the same way; Adagrad, six epochs, lock-free over 20 threads (3 s per epoch for 14M
+positions).
+
+Data (`tools.GenData`, in process, 117 games/s on 20 cores): random openings of 6-12 plies, then fixed-node searches, every
+later position stored with its search score, static evaluation and the final result. Round 1: 100,000 games at 20,000 nodes
+per move, 60,000 at 8,000, 40,000 at 60,000 = 15.2M positions (about 35 minutes). Validation loss (held-out games): static
+evaluation alone 0.6093, with the pair weights 0.5798.
+
+Play (timed 50 ms, against the build with the new search defaults, 1200 games, +/- 21):
+
+| Pair table | Result |
+|---|---|
+| round 1, `PairBlend` 100 | **+148.6** |
+| round 1, `PairBlend` 70 | **+172.0** |
+| round 1 with finer quantisation (32 steps per unit instead of 8), blend 70 / 55 | **+155.5** / +144.1 |
+
+Adopted: the round-1 weights as the built-in table (`pair-patterns.bin`, 396 KB), `PairBlend` 70. Depth-9 bench with it: 29.4M
+nodes (43.4M without) at 8.3M nodes/s (12.4M). Against Moonbird at 100 ms (1200 games, 14 Elo of grace): **-299.1 +/- 27.4**
+(was -353).
+
+A second round of data from the engine playing with the pair table (120,000 games at 20,000 nodes, 60,000 at 8,000: 13.9M
+positions), alone or pooled with round 1 (29M positions), gave tables no better than the first: **-6.9** (pooled) and **+4.1**
+(round 2 alone) against it (1200 games, +/- 20). At this feature set more data and stronger-engine data are no longer what
+limits the evaluation.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
