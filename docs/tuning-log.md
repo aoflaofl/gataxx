@@ -685,6 +685,11 @@ plain refit did (about +25). As with the first fit, how well a table predicts th
 Adopted: the plain refit, ridge 100, 124,110 positions, as the built-in table (`pattern-table.txt`). Bench 9: 107.1M nodes
 (130.4M before), scoresum 508.
 
+Checks of the installed table: against the previous `main` directly (old table, 50 ms, seed 8080, 2400 games) **+1247 -1153,
++13.6 +/- 13.9**; against the published 1.5.0 jar (seed 3434, 2000 games) **+1061 -939, +21.2 +/- 15.3**. The three direct
+comparisons with the old table (+23.8, +25.1, +13.6) pool to about +20 +/- 9. The gains over 1.5.0 (jump cut about +24 on its
+own, refit about +20) did not visibly add in that one 2000-game match; its error bar (+/- 15) covers both.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
