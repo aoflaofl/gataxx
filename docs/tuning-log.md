@@ -790,6 +790,18 @@ searches 10x fewer nodes per second). Its option list names the techniques it us
 null-move pruning with a minimum number of target squares, late-move reductions with a half-life in depth, internal iterative
 reduction, a history table with bad-move division); several of these were tried here without gain.
 
+Outside engines with the build that became 1.6.0 (100 ms per move, one thread each, Hash 128, 6-ply openings, same seeds as
+before):
+
+| Opponent | games, seed | result | previous build (Funes-fitted table) |
+|---|---|---|---|
+| TikTaxx | 400, 5150 | 363-37 (90.8%), **+396.7 +/- 58.8** | +367.7 |
+| Funes | 400, 5150 | 214-186 (53.5%), **+24.4 +/- 34.1** | -6.9 |
+| Funes | 1200, 7 | 649-550 (one draw, 54.1%), **+28.7 +/- 19.7** | +12.7 |
+| Moonbird | 1200, 7 | 139-1061 (11.6%), **-353.1 +/- 30.7** | -367.7 |
+
+One Funes game in the 1200 ended with an illegal move by Funes (game 915; at most 1 Elo).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

@@ -13,7 +13,7 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.5.0.jar
+java -jar gataxx-1.6.0.jar
 ```
 
 ## Strength
@@ -21,15 +21,21 @@ java -jar gataxx-1.5.0.jar
 Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
 thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
-- Version 1.5.0 beats 1.4.0 in 67% of games (+124.5 Elo, 1600 games at 50 ms per move, one thread each), almost all of it
-  from cutting dominated jumps in quiescence search (see `QuiesceJumpCut` below). With `Threads` it is stronger still: against
-  itself on one thread at equal time per move, 4 threads scored about +105 Elo and 8 threads about +125 (measured for 1.4.0).
-- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.5.0 wins about 88% of
-  games (+342 Elo, 400 games, 100 ms per move); 1.3.0 scored +269 and 1.1.0 +165. This match is too
+- Version 1.6.0 beats 1.5.0 in 61% of games (+75.5 Elo, 2000 games at 50 ms per move, one thread each). It comes from a
+  dominated-jump cut in the main search (`JumpCut`, about +24) and two refits of the built-in pattern table, the second fitted
+  to the scores of a much stronger engine (about +20 and +24). With `Threads` it is stronger still: against itself on one
+  thread at equal time per move, 4 threads scored about +105 Elo and 8 threads about +139 (measured on the 1.5.0 search).
+- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.6.0 wins about 91% of
+  games (+397 Elo, 400 games, 100 ms per move); 1.5.0 scored +342, 1.3.0 +269 and 1.1.0 +165. This match is too
   lopsided to show small differences.
-- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.5.0 loses about 43-46% of games
-  (-26 Elo over 400 games, -50 Elo over 1200 games, 100 ms per move); 1.3.0 lost about 72% (-158 Elo on the same openings)
-  and 1.1.0 -291. Funes is still ahead: it searches to a much greater nominal depth with fewer nodes.
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.6.0 wins about 54% of games
+  (+29 Elo over 1200 games, +24 over 400, 100 ms per move: level to slightly ahead); 1.5.0 scored -26 to -50, 1.3.0 -158 and
+  1.1.0 -291.
+- Against the open-source Nim engine [Moonbird](https://github.com/tsoj/Moonbird) 1.0.0, version 1.6.0 loses about 88% of
+  games (-353 Elo over 1200 games at 100 ms per move; earlier builds -368). Moonbird is far stronger than the other opponents:
+  it reaches depth 14-15 in 100 ms with about a tenth of the nodes per second.
+- Version 1.5.0 beats 1.4.0 in 67% of games (+124.5 Elo, 1600 games at 50 ms per move), almost all of it from cutting
+  dominated jumps in quiescence search (see `QuiesceJumpCut` below).
 - Version 1.4.0 beats 1.3.0 by about +38 Elo (888-712, 1600 games at 50 ms per move): the same search, about 43% faster
   per node.
 - Version 1.3.0 beats 1.2.0 in 59-61% of games (+46 to +76 Elo on three seeds, 800 games each at 50 ms per move). The
@@ -67,7 +73,8 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name Tempo value <n>` | Bonus (in pieces) for the side to move in the static evaluation (default 2). |
 | `setoption name QuiesceMinCaptures value <n>` | Quiescence search extends moves converting at least this many pieces (default 3; `0` turns quiescence off). |
 | `setoption name QuiesceMaxPly value <n>` | Most extra plies quiescence may search (default 5, max 16). Odd values played best: 5 beat 3, 4, 6 and 7. |
-| `setoption name QuiesceJumpCut value 0\|1\|2` | Which jumps quiescence tries. `1` (default) leaves out jumps to squares a clone could also reach, which convert the same pieces and leave the origin empty: 2.8x fewer nodes at depth 9 and +88 Elo. `2` cuts them only when the origin stone cannot be attacked (almost nothing); `0` keeps all. `JumpCut` applies the same cut in the main search, where it loses 75 Elo (default 0). |
+| `setoption name QuiesceJumpCut value 0\|1\|2` | Which jumps quiescence tries. `1` (default) leaves out jumps to squares a clone could also reach, which convert the same pieces and leave the origin empty: 2.8x fewer nodes at depth 9 and +88 Elo. `2` cuts them only when the origin stone cannot be attacked (almost nothing); `0` keeps all. |
+| `setoption name JumpCut value 0\|1\|2\|3` | The same idea in the main search, where cutting every such jump loses 75 Elo (`1`): a jump can save an attackable stone that a clone leaves behind. `3` (default) cuts only those that convert nothing (about +20 to +35 Elo); `0` keeps all. `JumpCutMinEmpties` (default 12) keeps every jump in the endgame; `JumpCutNear` and `JumpCutNearDepth` apply a different mode within a few plies of the leaves (off by default: it saves nodes but no strength). |
 | `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8), `EvalReach` (pieces no enemy can threaten next move, default 4), `EvalTerritory`, `EvalMobility` and `EvalExposure` (default 0) are also available. `EvalCohesion` (default -3: penalises adjacent own pieces, favouring spread-out groups) and `EvalThreat` (default 0) are in 1/64 piece, the others in 1/16. `EvalFade` (default 0, off) scales the positional weights down as the board fills; tested, no gain. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
@@ -75,7 +82,7 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name Pvs value 0\|1` | Principal variation search (default 1). |
 | `setoption name Lmr value 0\|1` | Late-move reductions (default 1) with `LmrMoves` (3), `LmrMinDepth` (4) and `LmrDeepMoves` (6: moves ranked this late are reduced by two plies). |
 | `setoption name Threads value <n>` | Search threads (default 1, max 64): Lazy SMP, where helper threads search the same position over a shared lock-free transposition table, skipping different iterations. The search is not deterministic with more than one thread. Against 1 thread at equal time per move (50 ms): 2 threads about +30 Elo, 4 threads about +105, 8 threads about +125. |
-| `setoption name PatternBlend value <n>` | Percentage (default 50, `0` = off) of a built-in learned local-environment table mixed into the evaluation: a weight per square, by its state, its square type and its friendly/enemy neighbour counts. `PatternMargin` (default 32, in 1/16 piece) skips the table when the plain score is clearly outside the search window; `PatternFile` loads another table written by `tools.PatternFit` instead of the built-in one. |
+| `setoption name PatternBlend value <n>` | Percentage (default 65, `0` = off) of a built-in learned local-environment table mixed into the evaluation: a weight per square, by its state, its square type and its friendly/enemy neighbour counts. `PatternMargin` (default 32, in 1/16 piece) skips the table when the plain score is clearly outside the search window; `PatternFile` loads another table written by `tools.PatternFit` instead of the built-in one. |
 | `setoption name NullMove value 0\|1`, `Futility` | Null-move pruning and futility pruning, with their parameters (`NullR`, `NullMinEmpties`, `FutilityMargin`, `FutilityDepth`). Both default to 0: neither helped in tests. |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
