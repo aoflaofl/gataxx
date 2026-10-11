@@ -659,6 +659,32 @@ Lazy SMP against 1 thread of the same build at equal time per move (50 ms, seed 
 
 The gains (1.4.0: +29, +105, +125) survive the 40% smaller tree.
 
+## Refitting the pattern table on current self-play positions
+
+The built-in table was fitted to Funes' scores on positions from an early engine's self-play (60,477 positions). Refit with the
+same recipe on positions from the current engine: 48,000 game records (24,000 distinct games) at 10,000-40,000 nodes per move
+with 6-12 ply random openings (two minutes per 6000 games), 163,763 quiet positions from ply 10 on scored by Funes at 30 ms (16
+workers, 28 s per 19,000 positions; outputs only), of which 124,110 are within +/-3000 and used (split by game parity). New
+tooling: `PatternFit --blend w` fits the table as a residual of the blend the engine plays and reports the blended held-out R^2,
+and `--compare table.txt` scores an existing table the same way.
+
+Held-out R^2 against Funes' score: base evaluation alone **0.352**; the old built-in table blended at 0.5 **0.370**; a plain
+refit (table alone, ridge 100) 0.384; residual fits for blend 0.35 / 0.5 / 0.7 evaluated as the blended predictor **0.389 / 0.388 /
+0.387** (ridge 300).
+
+Played against the defaults (old built-in table), timed 50 ms, each table at the blend it was fitted for:
+
+| Table | seed 1818, 1200 games (+/- 20) | seed 2929, 2000 games (+/- 15) |
+|---|---|---|
+| plain refit, blend 50 | **+23.8** | **+25.1** |
+| residual fit for blend 0.5 | +11.6 | -6.9 |
+| residual fit for blend 0.35 / 0.7 | +6.9 / +10.1 | |
+
+So the residual fits, although better predictors of the teacher when blended, did not play better than the old table, while the
+plain refit did (about +25). As with the first fit, how well a table predicts the teacher is a weak guide to how it plays.
+Adopted: the plain refit, ridge 100, 124,110 positions, as the built-in table (`pattern-table.txt`). Bench 9: 107.1M nodes
+(130.4M before), scoresum 508.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

@@ -15,7 +15,7 @@ import spamalot.gataxx.eval.LocalPatterns;
  *
  * <pre>
  * java -cp gataxx.jar spamalot.gataxx.tools.PatternFit --scores scores.tsv [--quiet 3] [--max-score 3000]
- *     [--ridge 1,10,100] [--out table.txt]
+ *     [--ridge 1,10,100] [--blend 0.5] [--compare table.txt] [--out table.txt]
  * </pre>
  */
 public final class PatternFit {
@@ -171,14 +171,59 @@ public final class PatternFit {
         return s;
     }
 
+    private static LinearRegression unitsFit(List<Distill.Row> rows) {
+        double[][] xe = new double[rows.size()][];
+        for (int i = 0; i < xe.length; i++) {
+            xe[i] = new double[] {1, rows.get(i).currentEval()};
+        }
+        return LinearRegression.fit(xe, rows.stream().mapToDouble(Distill.Row::score).toArray(), 1e-9);
+    }
+
+    /** The evaluation the table is blended with: the engine's default hand-weighted features. */
+    static spamalot.gataxx.eval.Evaluator baseEvaluator() {
+        return new spamalot.gataxx.eval.FeatureEvaluator(new spamalot.gataxx.eval.FeatureEvaluator.Weights(
+                spamalot.gataxx.eval.FeatureEvaluator.SCALE, 4, 0, 0, 4, 0, 8, 32, 0, 0, 0, -3, 0));
+    }
+
+    /**
+     * Targets for fitting the table as a residual of a blend: the evaluator plays {@code (1 - w) * base + w * (T - a) / b}, so
+     * for it to predict the teacher the table must predict {@code a + (y - a) / w - b * (1 - w) / w * base}.
+     */
+    static Data retarget(Data d, List<Distill.Row> rows, double a, double b, double w) {
+        double[] y = new double[d.size()];
+        for (int i = 0; i < y.length; i++) {
+            y[i] = a + (d.y()[i] - a) / w - b * (1 - w) / w * rows.get(i).currentEval();
+        }
+        return new Data(d.idx(), y, d.game());
+    }
+
+    private static double r2(double[] y, double[] pred) {
+        double mean = 0;
+        for (double v : y) {
+            mean += v;
+        }
+        mean /= y.length;
+        double sse = 0;
+        double sst = 0;
+        for (int i = 0; i < y.length; i++) {
+            sse += (y[i] - pred[i]) * (y[i] - pred[i]);
+            sst += (y[i] - mean) * (y[i] - mean);
+        }
+        return sst == 0 ? 0 : 1 - sse / sst;
+    }
+
     public static void main(String[] args) throws IOException {
         List<Path> files = new ArrayList<>();
         int quiet = 3;
         double maxAbs = 3000;
         String ridges = "1,10,100";
         Path out = null;
+        double blend = 0;
+        Path compare = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
+                case "--blend" -> blend = Double.parseDouble(args[++i]);
+                case "--compare" -> compare = Path.of(args[++i]);
                 case "--scores" -> files.add(Path.of(args[++i]));
                 case "--quiet" -> quiet = Integer.parseInt(args[++i]);
                 case "--max-score" -> maxAbs = Double.parseDouble(args[++i]);
@@ -213,29 +258,66 @@ public final class PatternFit {
 
         Data dTrain = toData(train);
         Data dTest = toData(test);
+
+        // Units: teacher = ua + ub * (our base evaluation), fitted on the training split.
+        LinearRegression unitsTrain = unitsFit(train);
+        double ua = unitsTrain.coefficients()[0];
+        double ub = unitsTrain.coefficients()[1];
+        double[] yTest = test.stream().mapToDouble(Distill.Row::score).toArray();
+        double[] baseTest = test.stream().mapToDouble(Distill.Row::currentEval).toArray();
+        double[] basePred = new double[yTest.length];
+        for (int i = 0; i < basePred.length; i++) {
+            basePred[i] = ua + ub * baseTest[i];
+        }
+        System.out.printf("held-out R^2 of the base evaluation alone (teacher = %.1f + %.2f * base): %.4f%n", ua, ub, r2(yTest, basePred));
+        if (compare != null) {
+            double a = blend > 0 ? blend : 0.5;
+            try {
+                spamalot.gataxx.eval.Evaluator handWeighted = baseEvaluator();
+                spamalot.gataxx.eval.PatternEvaluator pe = spamalot.gataxx.eval.PatternEvaluator.load(compare, handWeighted, a);
+                double[] pred = new double[yTest.length];
+                for (int i = 0; i < pred.length; i++) {
+                    pred[i] = ua + ub * pe.evaluate(Position.fromFen(test.get(i).fen()));
+                }
+                System.out.printf("held-out R^2 of %s blended at %.2f: %.4f%n", compare, a, r2(yTest, pred));
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        Data fitTrain = blend > 0 ? retarget(dTrain, train, ua, ub, blend) : dTrain;
         Model best = null;
         double bestR2 = -1e9;
-        System.out.printf("local-environment table (%d weights):%n", LocalPatterns.SIZE);
+        System.out.printf("local-environment table (%d weights)%s:%n", LocalPatterns.SIZE,
+                blend > 0 ? ", fitted as a residual for blend " + blend : "");
         for (String s : ridges.split(",")) {
             double lambda = Double.parseDouble(s);
-            Model m = fit(dTrain, lambda, 600);
-            double r2 = rSquared(m, dTest);
-            System.out.printf("  ridge %-6s train R^2 %.4f   held-out R^2 %.4f%n", s, rSquared(m, dTrain), r2);
-            if (r2 > bestR2) {
-                bestR2 = r2;
+            Model m = fit(fitTrain, lambda, 600);
+            double score;
+            if (blend > 0) {
+                double[] pred = new double[yTest.length];
+                for (int i = 0; i < pred.length; i++) {
+                    pred[i] = ua + ub * (1 - blend) * baseTest[i] + blend * (m.predict(dTest.idx()[i]) - ua);
+                }
+                score = r2(yTest, pred);
+                System.out.printf("  ridge %-6s blended held-out R^2 %.4f%n", s, score);
+            } else {
+                score = rSquared(m, dTest);
+                System.out.printf("  ridge %-6s train R^2 %.4f   held-out R^2 %.4f%n", s, rSquared(m, dTrain), score);
+            }
+            if (score > bestR2) {
+                bestR2 = score;
                 best = m;
             }
         }
         if (out != null && best != null) {
-            Model full = fit(toData(rows), best.ridge(), 600);
             // How the teacher's units relate to ours: teacher = a + b * (our current evaluation).
-            double[][] xe = new double[rows.size()][];
-            for (int i = 0; i < xe.length; i++) {
-                xe[i] = new double[] {1, rows.get(i).currentEval()};
-            }
-            LinearRegression units = LinearRegression.fit(xe, rows.stream().mapToDouble(Distill.Row::score).toArray(), 1e-9);
+            LinearRegression units = unitsFit(rows);
+            Data all = toData(rows);
+            Model full = fit(blend > 0 ? retarget(all, rows, units.coefficients()[0], units.coefficients()[1], blend) : all,
+                    best.ridge(), 600);
             List<String> text = new ArrayList<>();
-            text.add("# local-environment table fitted to teacher scores; ridge " + best.ridge() + "; positions " + rows.size());
+            text.add("# local-environment table fitted to teacher scores; ridge " + best.ridge() + "; positions " + rows.size()
+                    + (blend > 0 ? "; residual fit for blend " + blend : ""));
             text.add("# intercept " + full.intercept());
             text.add("# units " + units.coefficients()[0] + " " + units.coefficients()[1]);
             for (int state = 0; state < 3; state++) {
