@@ -854,7 +854,7 @@ Play (timed 50 ms, against the build with the new search defaults, 1200 games, +
 | round 1 with finer quantisation (32 steps per unit instead of 8), blend 70 / 55 | **+155.5** / +144.1 |
 
 Adopted: the round-1 weights as the built-in table (`pair-patterns.bin`, 396 KB), `PairBlend` 70. Depth-9 bench with it: 29.4M
-nodes (43.4M without) at 8.3M nodes/s (12.4M). Against Moonbird at 100 ms (1200 games, 14 Elo of grace): **-299.1 +/- 27.4**
+nodes (43.4M without) at 8.3M nodes/s (12.4M). Against Moonbird at 100 ms (1200 games, `--fen-only2 --grace 3000`): **-299.1 +/- 27.4**
 (was -353).
 
 A second round of data from the engine playing with the pair table (120,000 games at 20,000 nodes, 60,000 at 8,000: 13.9M
