@@ -52,6 +52,8 @@ public final class Searcher {
     private int jumpMode = Position.JUMPS_ALL;
     private int jumpCutMinEmpties;
     private int jumpNearMode = Position.JUMPS_ALL;
+    private int iirMinDepth;
+    private boolean usePartialIterations;
     private int jumpNearDepth;
     private boolean usePvs;
     private boolean useFutility;
@@ -145,6 +147,27 @@ public final class Searcher {
     private int jumpModeFor(Position pos, int depth) {
         int mode = jumpNearDepth > 0 && depth <= jumpNearDepth ? jumpNearMode : jumpMode;
         return mode != Position.JUMPS_ALL && Long.bitCount(pos.empty()) >= jumpCutMinEmpties ? mode : Position.JUMPS_ALL;
+    }
+
+    /**
+     * Internal iterative reduction: a node of at least {@code minDepth} remaining plies with no move in the transposition
+     * table (so nothing to order by) is searched one ply shallower; the cheaper search fills the table for the next visit.
+     * 0 turns it off (the default).
+     */
+    public void setIir(int minDepth) {
+        if (minDepth < 0) {
+            throw new IllegalArgumentException("minDepth must not be negative");
+        }
+        this.iirMinDepth = minDepth;
+    }
+
+    /**
+     * When the time runs out in the middle of an iteration, play the best move that iteration had completed instead of the
+     * previous iteration's move. The first root move searched is the previous best, and a later move only replaces it after a
+     * full-window re-search at the new depth, so the interrupted iteration's choice is never worse.
+     */
+    public void setPartialIterations(boolean enabled) {
+        this.usePartialIterations = enabled;
     }
 
     /**
@@ -299,6 +322,11 @@ public final class Searcher {
             }
             int score = negamax(root, depth, -INF, INF, 0, true, true);
             if (aborted) {
+                if (usePartialIterations && pvLen[0] > 0 && depth > 1) {
+                    // The root move that was best when time ran out had its search at this depth completed.
+                    best = new SearchResult(pv[0][0], best.score(), best.depth(), nodes, best.timeMs(),
+                            Arrays.copyOf(pv[0], pvLen[0]));
+                }
                 break;
             }
             long elapsed = System.nanoTime() - start;
@@ -370,6 +398,10 @@ public final class Searcher {
                     }
                 }
             }
+        }
+
+        if (iirMinDepth > 0 && depth >= iirMinDepth && ttMove == Move.NONE) {
+            depth--;
         }
 
         if (useNullMove && nullAllowed && !onPv && beta - alpha == 1 && depth > nullReduction

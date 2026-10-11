@@ -802,6 +802,29 @@ before):
 
 One Funes game in the 1200 ended with an illegal move by Funes (game 915; at most 1 Elo).
 
+## Ideas from a description of Moonbird's search and evaluation
+
+The project owner, who may read Moonbird's source (it publishes no licence, so the assistant did not), described its search and
+evaluation at a high level: negamax alpha-beta with a transposition table; move ordering by the table move, immediate gain and a
+history table, with jumps penalised; narrow-window searches; late-move reductions from a late move number; futility-based depth
+reductions; null-move pruning when enough target squares are empty; internal iterative reduction at depth four and up when
+there is no table move; aspiration windows; shared-table multi-threading; time management that predicts the cost of the next
+iteration; no quiescence search at all. The evaluation is learned from game outcomes: patterns of the exact contents of pairs of
+2x2 blocks (80 placements, 65,536 weights each), a mobility term, a term for the neighbourhood of each piece by square, and a
+tempo term. Of the search items, some were tried here before (history, null-move, futility, aspiration: no gain). New ones:
+
+| Change (timed 50 ms against the 1.6.0 defaults, 1200 games, +/- 20) | Result |
+|---|---|
+| internal iterative reduction, `IirMinDepth` 4 | +29.6 |
+| `IirMinDepth` 3 | **+68.6**; fresh seed **+62.0** |
+| `IirMinDepth` 2 | +50.7 |
+| `IirMinDepth` 3 with `PartialIterations` | +63.8 (same seed as the +62.0) |
+| `PartialIterations` alone (best move of an interrupted iteration) | +16.8 |
+| `NullMove` 1 (retested) | -2.3 |
+
+Adopted: `IirMinDepth` 3 (a node of 3 or more plies left with no table move is searched one ply shallower; depth-9 bench 44.7M
+to 43.4M nodes but a much better table-move hit rate) and `PartialIterations` 1.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
