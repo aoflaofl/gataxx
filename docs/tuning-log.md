@@ -711,6 +711,39 @@ teacher speeds) gained about +29. Installed B as the built-in table: ridge 100, 
 Validation against the published 1.5.0 jar (timed 50 ms, one thread each, seed 5656, 2000 games): **+1173 -827, +60.7 +/- 15.5
 Elo**. The suite (225 tests) passes.
 
+## Outside engines with the refit tables, and a third engine: Moonbird
+
+`main` at `a52d9bf` plus the match-harness change (defaults: jump cuts, `QuiesceMaxPly` 5, second refit of the built-in table,
+`Threads` 1) at 100 ms per move, one thread each, Hash 128, 6-ply random openings, the same seeds as the earlier measurements.
+TikTaxx `95dffff` and Funes `dd319f1` were rebuilt from source (see above); Moonbird 1.0.0 is the prebuilt
+`Moonbird-1.0.0-linux-amd64` that the project owner supplied (source: github.com/tsoj/Moonbird, Nim; the binary is not in
+the repository and is git-ignored).
+
+| Opponent | games, seed | this build | previous measurement (same seed) |
+|---|---|---|---|
+| TikTaxx | 400, 5150 | 357-43 (89.3%), **+367.7 +/- 55.0** | +342.0 (build at `fb82cee`), +269.4 (1.3.0) |
+| Funes | 400, 5150 | 196-204 (49.0%), **-6.9 +/- 34.1** | -26.1 (`fb82cee`), -186.2 (1.3.0) |
+| Funes | 1200, 7 | 622-578 (51.8%), **+12.7 +/- 19.7** | -50.1 (`fb82cee`), -157.7 (1.3.0) |
+| Moonbird | 400, 5150 | 44-356 (11.0%), **-363.2 +/- 54.4** | |
+| Moonbird | 1200, 7 | 129-1071 (10.8%), **-367.7 +/- 31.7** | |
+
+Funes is now level (a nominal +13 Elo over 1200 games, within noise), and TikTaxx is beaten 89-11. Moonbird is far stronger
+than anything measured before: gataxx wins about one game in nine. At 100 ms it reaches depth 14-15 at about 1.3M nodes/s
+(gataxx: 13M nodes/s), so its evaluation and search are much more selective and informed, not faster.
+
+Moonbird needed two accommodations in `tools.Match` / `UaiClient` (the script `scripts/outside_engines.sh` applies both):
+
+- **It rejects the second move of any `position ... moves ...` list** ("Illegal move", and the whole command is dropped, so
+  it keeps the start position) even for trivially legal moves. The harness could not play it at first (about a third of the
+  games were scored as illegal moves in the first two to four plies). `--fen-only2` sends it each position as a bare FEN
+  with the moves already applied; the games are otherwise identical.
+- **It overruns `go movetime 100` by about a second in some one-sided positions** (reproduced: a side with one stone left
+  against five takes a steady 1.15 s). With the default 1 s grace the harness scored 4 of 1200 games as Moonbird timeouts
+  (wins for gataxx, worth about 8 Elo of the result). With `--grace 3000` those games are played out; the table above uses
+  that setting (the first run with the default grace gave 42-358 and 128-1072: -369.2 +/- 31.8).
+
+Funes again sent an illegal move in one of the 1200 games (game 587, scored as a win for gataxx; at most 1 Elo).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
