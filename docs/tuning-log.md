@@ -775,6 +775,21 @@ in only 64% of positions (123,017 of them within +/-3000 for both).
 Adopted: this table as the built-in table, with `PatternBlend` 65 (was 50). The depth-9 bench falls to 44.7M nodes
 (76.1M before), scoresum 476. The test that checks the hand-weight options now pins `PatternBlend 0`.
 
+Validation of the build with the Moonbird-fitted table (`PatternBlend` 65):
+
+| Opponent | games, seed, time | result |
+|---|---|---|
+| the published 1.5.0 jar | 2000, seed 9191, 50 ms | **+1214 -786, +75.5 +/- 15.6** (the build with the Funes-fitted table: +60.7) |
+| the previous `main` (Funes-fitted table, blend 50) | 2400, seed 9292, 50 ms | +1239 -1161, **+11.3 +/- 13.9** |
+| Moonbird 1.0.0 | 1200, seed 7, 100 ms (`--fen-only2 --grace 3000`) | 139-1061 (11.6%), **-353.1 +/- 30.7** (was -367.7 +/- 31.7) |
+
+The three direct comparisons of the Moonbird-fitted table with the Funes-fitted one (+33.7, +28.9, +11.3) pool to about +24 +/- 9.
+Learning from Moonbird's scores did not close the gap to Moonbird itself (-368 to -353, within noise): the difference between the two
+engines is not mainly the static evaluation that a counting table can absorb, and it is not Moonbird's speed either (it
+searches 10x fewer nodes per second). Its option list names the techniques it uses (aspiration windows, futility pruning,
+null-move pruning with a minimum number of target squares, late-move reductions with a half-life in depth, internal iterative
+reduction, a history table with bad-move division); several of these were tried here without gain.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
