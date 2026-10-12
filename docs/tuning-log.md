@@ -879,6 +879,19 @@ nodes without, 8.7M at `div` 35, 21.2M at 70. Timed 50 ms against the build with
 Adopted: 24 (a plateau from 12 to 35; 8 is too aggressive). Against Moonbird, which reaches depth 12-13 with 3 to 16 times
 fewer nodes than we need for depth 8-9, this is the largest single search difference found.
 
+Retune under the new tree (each setting against the new defaults, timed 50 ms, 1200 games, seed 2323, +/- 20):
+
+| Setting | Result |
+|---|---|
+| `NullMove` 1 | -23.8 |
+| `LmrMoves` 2 / 4 | +8.1 / -7.8 |
+| `LmrMinDepth` 3 | -22.6 |
+| `IirMinDepth` 2 / 4 | +9.3 / -15.6 |
+| `QuiesceMaxPly` 4 / 6 | -20.9 / -27.9 |
+| `PairBlend` 55 / 90 | -18.5 / **+19.1** |
+
+Nothing is adopted; `PairBlend` 90 is the only reading worth repeating on a fresh seed (and 100).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
