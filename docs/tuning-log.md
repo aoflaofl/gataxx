@@ -903,6 +903,21 @@ pair-pattern evaluator at blend 90, graded futility reduction 24, with the 1.6.0
 published 1.6.0 jar (SHA-256 `52c2d37b...0434`), timed 50 ms, one thread each, seed 7373, 2000 games:
 **+1683 -317, +290.0 +/- 20.8 Elo** (84.2%).
 
+**Outside engines with this build** (100 ms per move, one thread each, Hash 128, 6-ply openings, same seeds as before; TikTaxx
+`95dffff` and Funes `dd319f1` rebuilt from source again, Moonbird 1.0.0 with `--fen-only2 --grace 3000`):
+
+| Opponent | games, seed | this build | the 1.6.0 build (same seed) |
+|---|---|---|---|
+| TikTaxx | 400, 5150 | 367-33 (91.8%), **+418.5 +/- 61.9** | +396.7 |
+| Funes | 400, 5150 | 339-61 (84.8%), **+297.9 +/- 47.4** | +24.4 |
+| Funes | 1200, 7 | 1027-173 (85.6%), **+309.4 +/- 28.0** | +28.7 |
+| Moonbird | 400, 5150 | 68-332 (17.0%), **-275.5 +/- 45.3** | |
+| Moonbird | 1200, 7 | 212-988 (17.7%), **-267.4 +/- 25.8** | -353.1 (the build at `fb82cee`), -299.1 (pair table, no futility reduction) |
+
+Against Funes the improvement over 1.6.0 (+280 Elo) is about what self-play showed (+290); against Moonbird it is smaller (about
++86 from -353): self-play gains overstate gains against an independent engine, and Moonbird, with a trained evaluation and an
+equally selective search, is the opponent that still wins five games in six.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
