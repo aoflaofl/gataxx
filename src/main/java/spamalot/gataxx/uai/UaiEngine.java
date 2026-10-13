@@ -81,6 +81,14 @@ public final class UaiEngine {
     private int jumpCutNear;
     private int iirMinDepth = 3;
     private int futilityReduction = 24;
+    private int futilityKeepZero;
+    private int lmrHalfLife;
+    private int lmrFormulaMinMove = 7;
+    private int lmrFormulaSub;
+    private int nullStyle;
+    private int nullDepthSub = 4;
+    private int nullDepthDiv = 2;
+    private int nullMinTargets = 11;
     private String pairFile = "";
     private int pairBlend = 90;
     private int partialIterations = 1;
@@ -161,6 +169,14 @@ public final class UaiEngine {
                     send("option name PairBlend type spin default 90 min 0 max 300");
                     send("option name IirMinDepth type spin default 3 min 0 max 20");
                     send("option name FutilityReduction type spin default 24 min 0 max 500");
+                    send("option name FutilityKeepZero type spin default 0 min 0 max 1");
+                    send("option name LmrHalfLife type spin default 0 min 0 max 1000");
+                    send("option name LmrFormulaMinMove type spin default 7 min 1 max 40");
+                    send("option name LmrFormulaSub type spin default 0 min 0 max 10");
+                    send("option name NullStyle type spin default 0 min 0 max 1");
+                    send("option name NullDepthSub type spin default 4 min 0 max 20");
+                    send("option name NullDepthDiv type spin default 2 min 1 max 20");
+                    send("option name NullMinTargets type spin default 11 min 0 max 49");
                     send("option name PartialIterations type spin default 1 min 0 max 1");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
@@ -277,6 +293,22 @@ public final class UaiEngine {
             newEvaluator(); // validates the file now
         } else if (name.equalsIgnoreCase("PairBlend")) {
             pairBlend = spinValue(name, value, 0, 300);
+        } else if (name.equalsIgnoreCase("FutilityKeepZero")) {
+            futilityKeepZero = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("LmrHalfLife")) {
+            lmrHalfLife = spinValue(name, value, 0, 1000);
+        } else if (name.equalsIgnoreCase("LmrFormulaMinMove")) {
+            lmrFormulaMinMove = spinValue(name, value, 1, 40);
+        } else if (name.equalsIgnoreCase("LmrFormulaSub")) {
+            lmrFormulaSub = spinValue(name, value, 0, 10);
+        } else if (name.equalsIgnoreCase("NullStyle")) {
+            nullStyle = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("NullDepthSub")) {
+            nullDepthSub = spinValue(name, value, 0, 20);
+        } else if (name.equalsIgnoreCase("NullDepthDiv")) {
+            nullDepthDiv = spinValue(name, value, 1, 20);
+        } else if (name.equalsIgnoreCase("NullMinTargets")) {
+            nullMinTargets = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("FutilityReduction")) {
             futilityReduction = spinValue(name, value, 0, 500);
         } else if (name.equalsIgnoreCase("IirMinDepth")) {
@@ -452,6 +484,9 @@ public final class UaiEngine {
         s.setJumpMode(jumpCut, jumpCutMinEmpties, jumpCutNear, jumpCutNearDepth);
         s.setIir(iirMinDepth);
         s.setFutilityReduction(futilityReduction);
+        s.setFutilityKeepZero(futilityKeepZero == 1);
+        s.setLmrFormula(lmrHalfLife, lmrFormulaMinMove, lmrFormulaSub);
+        s.setNullStyle(nullStyle, nullDepthSub, nullDepthDiv, nullMinTargets);
         s.setPartialIterations(partialIterations == 1);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);

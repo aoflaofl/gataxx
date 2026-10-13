@@ -54,6 +54,14 @@ public final class Searcher {
     private int jumpNearMode = Position.JUMPS_ALL;
     private int iirMinDepth;
     private int futilityReductionDiv;
+    private boolean futilityKeepZero;
+    private int lmrHalfLife;
+    private int lmrFormulaMinMove = 7;
+    private int lmrFormulaSub;
+    private int nullStyle;
+    private int nullDepthSub = 4;
+    private int nullDepthDiv = 2;
+    private int nullMinTargets = 11;
     private boolean usePartialIterations;
     private int jumpNearDepth;
     private boolean usePvs;
@@ -182,6 +190,44 @@ public final class Searcher {
             throw new IllegalArgumentException("div must not be negative");
         }
         this.futilityReductionDiv = div;
+    }
+
+    /**
+     * Late-move reduction by formula: from move number {@code minMove} (1-based, the table move included) on, a move is
+     * searched at depth {@code floor(depth * halfLife / (halfLife + k)) - sub}, where {@code k} is the number of earlier moves
+     * that were eligible; the reduction therefore grows gently with both depth and move number. 0 keeps the fixed-step rule.
+     */
+    public void setLmrFormula(int halfLife, int minMove, int sub) {
+        if (halfLife < 0 || minMove < 1 || sub < 0) {
+            throw new IllegalArgumentException("late-move-reduction formula parameters out of range");
+        }
+        this.lmrHalfLife = halfLife;
+        this.lmrFormulaMinMove = minMove;
+        this.lmrFormulaSub = sub;
+    }
+
+    /**
+     * With graded futility reduction, skip a move only when its remaining depth reaches zero (a child that would be searched
+     * at depth zero still gets its quiescence search) instead of whenever the child would be searched at depth zero.
+     */
+    public void setFutilityKeepZero(boolean keep) {
+        this.futilityKeepZero = keep;
+    }
+
+    /**
+     * Null-move style 1: at any non-root node whose table entry is missing or a lower bound, and where the side to move can
+     * reach at least {@code minTargets} distinct empty squares, pass and search at depth
+     * {@code max(0, depth - depthSub - depth / depthDiv)}; a score of at least beta cuts the node. No static-score gate and
+     * no verification. Needs {@link #setNullMove} enabled.
+     */
+    public void setNullStyle(int style, int depthSub, int depthDiv, int minTargets) {
+        if (style < 0 || style > 1 || depthSub < 0 || depthDiv < 1 || minTargets < 0) {
+            throw new IllegalArgumentException("null-move style parameters out of range");
+        }
+        this.nullStyle = style;
+        this.nullDepthSub = depthSub;
+        this.nullDepthDiv = depthDiv;
+        this.nullMinTargets = minTargets;
     }
 
     /**
@@ -387,8 +433,10 @@ public final class Searcher {
         boolean useTt = tt != null && pos.halfmoveClock() + depth < Position.HALFMOVE_LIMIT;
         int ttMove = Move.NONE;
         long hash = pos.hash();
+        boolean ttMissingOrLower = true;
         if (useTt) {
             tt.probe(hash, ttEntry);
+            ttMissingOrLower = !ttEntry.found || ttEntry.bound == TranspositionTable.BOUND_LOWER;
             if (ttEntry.found) {
                 ttMove = ttEntry.move;
                 boolean deepEnough = exactDepthHitsOnly ? ttEntry.depth == depth : ttEntry.depth >= depth;
@@ -418,7 +466,21 @@ public final class Searcher {
             depth--;
         }
 
-        if (useNullMove && nullAllowed && !onPv && beta - alpha == 1 && depth > nullReduction
+        if (useNullMove && nullStyle == 1 && ply > 0 && ttMissingOrLower
+                && beta < WIN - MAX_PLY && beta > -(WIN - MAX_PLY)
+                && !pos.isGameOver() && pos.hasMove(pos.sideToMove())
+                && Long.bitCount(Bitboards.expand2(pos.pieces(pos.sideToMove())) & pos.empty()) >= nullMinTargets) {
+            int childDepth = Math.max(0, depth - nullDepthSub - depth / nullDepthDiv);
+            int s = -negamax(pos.makeMove(Move.PASS), childDepth, -beta, -beta + 1, ply + 1, false, true);
+            if (aborted) {
+                return 0;
+            }
+            if (s >= beta) {
+                return beta;
+            }
+        }
+
+        if (useNullMove && nullStyle == 0 && nullAllowed && !onPv && beta - alpha == 1 && depth > nullReduction
                 && beta < WIN - MAX_PLY && beta > -(WIN - MAX_PLY)
                 && !pos.isGameOver() && pos.hasMove(pos.sideToMove())
                 && Long.bitCount(pos.empty()) >= nullMinEmpties
@@ -460,10 +522,21 @@ public final class Searcher {
             Position child = pos.makeMove(move);
             int score;
             if (usePvs && i > 0) {
-                boolean reduce = useLmr && i >= lmrFullMoves && depth >= lmrMinDepth;
+                boolean reduce;
                 int reduction = 0;
-                if (reduce) {
-                    reduction = lmrDeepMoves > 0 && i >= lmrDeepMoves && depth >= lmrMinDepth + 1 ? 2 : 1;
+                if (lmrHalfLife > 0) {
+                    int moveCounter = i + 1;
+                    if (moveCounter >= lmrFormulaMinMove) {
+                        int k = moveCounter - lmrFormulaMinMove;
+                        int lmrDepth = Math.max(0, depth * lmrHalfLife / (lmrHalfLife + k) - lmrFormulaSub);
+                        reduction = depth - lmrDepth;
+                    }
+                    reduce = reduction > 0;
+                } else {
+                    reduce = useLmr && i >= lmrFullMoves && depth >= lmrMinDepth;
+                    if (reduce) {
+                        reduction = lmrDeepMoves > 0 && i >= lmrDeepMoves && depth >= lmrMinDepth + 1 ? 2 : 1;
+                    }
                 }
                 if (futilityReductionDiv > 0 && move != Move.PASS && alpha > -(WIN - MAX_PLY) && alpha < WIN - MAX_PLY
                         && !child.isGameOver()) {
@@ -471,7 +544,7 @@ public final class Searcher {
                     if (ours < alpha) {
                         int extra = (alpha - ours) / futilityReductionDiv;
                         if (extra > 0) {
-                            if (depth - 1 - reduction - extra <= 0) {
+                            if (futilityKeepZero ? depth - reduction - extra <= 0 : depth - 1 - reduction - extra <= 0) {
                                 continue;
                             }
                             reduction += extra;
@@ -479,7 +552,8 @@ public final class Searcher {
                         }
                     }
                 }
-                score = -negamax(child, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1, false, true);
+                int searchDepth = Math.max(0, depth - 1 - reduction);
+                score = -negamax(child, searchDepth, -alpha - 1, -alpha, ply + 1, false, true);
                 if (!aborted && reduce && score > alpha) {
                     score = -negamax(child, depth - 1, -alpha - 1, -alpha, ply + 1, false, true);
                 }
