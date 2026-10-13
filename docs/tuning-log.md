@@ -896,7 +896,12 @@ Repeated on a fresh seed (6262, 2000 games each, +/- 15, against the same defaul
 `PairBlend` 100 **+1052 -948, +18.1**. With the first reading of `PairBlend` 90 (+19.1, 1200 games) it pools to about **+23 +/-
 13**; blend 100 is about as good. So the pair correction wants a weight of 90-100% in the finished engine, not the 70% found
 when it was first tested without the futility reduction (+172 at 70 against +149 at 100, with the older, larger tree).
-`PairBlend` 90 is the better default; it has not been changed yet.
+`PairBlend` 90 is now the default (depth-9 bench 5.4M nodes, 230 tests pass).
+
+**Cumulative validation of everything since 1.6.0** (iterative internal reduction, partial iterations, the built-in
+pair-pattern evaluator at blend 90, graded futility reduction 24, with the 1.6.0 search and evaluation otherwise), against the
+published 1.6.0 jar (SHA-256 `52c2d37b...0434`), timed 50 ms, one thread each, seed 7373, 2000 games:
+**+1683 -317, +290.0 +/- 20.8 Elo** (84.2%).
 
 ## Not yet measured
 
