@@ -918,6 +918,25 @@ Against Funes the improvement over 1.6.0 (+280 Elo) is about what self-play show
 +86 from -353): self-play gains overstate gains against an independent engine, and Moonbird, with a trained evaluation and an
 equally selective search, is the opponent that still wins five games in six.
 
+## Moonbird-style search rules, implemented (not yet measured)
+
+A second, more detailed high-level description from the project owner gave the shapes of three rules, now implemented as
+options that default to off (commit `eac91e7`), because measuring them was interrupted:
+
+- **Late-move reduction by formula** (`LmrHalfLife`, `LmrFormulaMinMove`, `LmrFormulaSub`): from a late move number on, a move is
+  searched at `floor(depth * h / (h + k)) - sub`, where `k` counts the earlier eligible moves, so the reduction grows gently with
+  depth and move number, instead of our fixed 1 or 2 plies from fixed move numbers. Depth-9 bench nodes: 5.36M (default),
+  4.95M, 3.98M and 2.35M for half-life 47 / 47 from move 4 / 20 from move 4.
+- **Futility skip rule** (`FutilityKeepZero`): skip a move only when its remaining depth reaches zero, so that a child that
+  would be searched at depth zero still gets its quiescence search (we skip it whenever the child would be at depth zero).
+- **Null-move style 1** (`NullMove 1`, `NullStyle 1`, `NullDepthSub`, `NullDepthDiv`, `NullMinTargets`): at any non-root node
+  whose table entry is missing or a lower bound, and where the mover can reach enough distinct empty squares, pass and search at
+  `max(0, depth - sub - depth / div)`; no static-score gate, no verification (ours: reduction 2, gated by the evaluation, which lost
+  24 to 28 Elo). Bench nodes 5.61M.
+
+Also learned: Moonbird's reported node counts exclude static evaluations used for futility and have no quiescence nodes,
+while ours include quiescence nodes (about 70% of them), so the node counts are not comparable; its "depth" is nominal.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
