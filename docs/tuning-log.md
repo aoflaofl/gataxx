@@ -892,6 +892,12 @@ Retune under the new tree (each setting against the new defaults, timed 50 ms, 1
 
 Nothing is adopted; `PairBlend` 90 is the only reading worth repeating on a fresh seed (and 100).
 
+Repeated on a fresh seed (6262, 2000 games each, +/- 15, against the same defaults): `PairBlend` 90 **+1072 -928, +25.1**;
+`PairBlend` 100 **+1052 -948, +18.1**. With the first reading of `PairBlend` 90 (+19.1, 1200 games) it pools to about **+23 +/-
+13**; blend 100 is about as good. So the pair correction wants a weight of 90-100% in the finished engine, not the 70% found
+when it was first tested without the futility reduction (+172 at 70 against +149 at 100, with the older, larger tree).
+`PairBlend` 90 is the better default; it has not been changed yet.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
