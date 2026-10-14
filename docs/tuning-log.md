@@ -937,6 +937,22 @@ options that default to off (commit `eac91e7`), because measuring them was inter
 Also learned: Moonbird's reported node counts exclude static evaluations used for futility and have no quiescence nodes,
 while ours include quiescence nodes (about 70% of them), so the node counts are not comparable; its "depth" is nominal.
 
+Measured (timed 50 ms against the 1.7.0 defaults, 1200 games, seed 3434, +/- 20):
+
+| Option | Result |
+|---|---|
+| `LmrHalfLife` 47 (their defaults, from move 7) | +4.6 |
+| `LmrHalfLife` 47 from move 4 | +1.2 |
+| `LmrHalfLife` 30 from move 3 | +1.7 |
+| `LmrHalfLife` 20 from move 4 (depth-9 tree less than half the size) | +8.7 |
+| `FutilityKeepZero` 1 | -8.7 |
+| `NullMove` 1 with `NullStyle` 1 | **-25.5** |
+
+None helps. The formula LMR is equivalent to our fixed-step rule at every setting tried, even where it halves the tree; the
+futility skip rule we already use is slightly better for us (our quiescence at depth zero is worth keeping in that spot); and
+the aggressive unconditional null move costs 25 Elo, as the gated one did. So the remaining difference to Moonbird is not in
+these search rules. The options stay in the code, off.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
