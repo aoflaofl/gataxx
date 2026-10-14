@@ -953,6 +953,21 @@ futility skip rule we already use is slightly better for us (our quiescence at d
 the aggressive unconditional null move costs 25 Elo, as the gated one did. So the remaining difference to Moonbird is not in
 these search rules. The options stay in the code, off.
 
+## Training data sampled from inside the search (generated, not yet trained)
+
+The project owner described how Moonbird builds its evaluation training set: positions picked at random from the calls its
+evaluator receives during search (non-quiet leaf positions included, no quietness filter), a separate game played from each
+picked position, positions saved at that start and then every 20-40 plies, labels half the game result and half a squashed search
+score, squared error, two epochs from zero weights, no weight sharing under symmetry, plus a phase-indexed mobility table and a
+per-piece surroundings table; datasets of the order of 100 million positions from several engine versions.
+
+Our earlier tables were trained on every ply of ordinary self-play games, which are quiet, correlated positions that differ from the
+leaf positions the evaluator is actually used on. Implemented: `GenData --internal` (outer games at `--outer-nodes`, picks with
+`--select-prob`, sample games at `--nodes`) and a phase-indexed mobility table in the pair evaluator (file format v3). Generated
+with the current defaults: 6 x 25,000 outer games at 1,000 nodes per sample move = 7,060,000 positions (about 47 per outer game,
+15 minutes per chunk on 20 cores), kept in the git-ignored `training-data/` (`iA1.bin` .. `iA6.bin`, 236 MB, checksums in
+`SHA256SUMS`). Training and play tests: next session.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
