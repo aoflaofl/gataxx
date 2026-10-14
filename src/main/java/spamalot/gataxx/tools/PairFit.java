@@ -25,7 +25,7 @@ import spamalot.gataxx.eval.PairPatterns;
  *
  * <pre>
  * java -Xmx12g -cp gataxx.jar spamalot.gataxx.tools.PairFit --data a.bin,b.bin --out pair.bin
- *     [--epochs 6] [--lr 0.5] [--lambda 0.5] [--threads 16] [--scale 0] [--valid-mod 20]
+ *     [--epochs 6] [--lr 0.5] [--lambda 0.5] [--threads 16] [--scale 0] [--valid-mod 20] [--no-mobility]
  * </pre>
  */
 public final class PairFit {
@@ -141,8 +141,10 @@ public final class PairFit {
         int threads = Runtime.getRuntime().availableProcessors();
         double scale = 0;
         int validMod = 20;
+        boolean noMobility = false;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
+                case "--no-mobility" -> noMobility = true;
                 case "--data" -> {
                     for (String f : args[++i].split(",")) {
                         files.add(Path.of(f));
@@ -191,6 +193,7 @@ public final class PairFit {
         }
         final double s = scale;
         final double lam = lambda;
+        final boolean mobilityOn = !noMobility;
 
         // Tie classes of symmetric patterns.
         long t1 = System.nanoTime();
@@ -256,6 +259,9 @@ public final class PairFit {
                             - w[ids[PairPatterns.PLACEMENTS + 2]];
                     double err = (sigmoid(e / s) - d.target(i, s, lam)) / s;
                     for (int j = 0; j < ids.length; j++) {
+                        if (!mobilityOn && j > PairPatterns.PLACEMENTS) {
+                            break;
+                        }
                         float g = (float) err * sign[j];
                         int id = ids[j];
                         g2[id] += g * g;

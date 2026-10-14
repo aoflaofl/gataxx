@@ -966,7 +966,24 @@ leaf positions the evaluator is actually used on. Implemented: `GenData --intern
 `--select-prob`, sample games at `--nodes`) and a phase-indexed mobility table in the pair evaluator (file format v3). Generated
 with the current defaults: 6 x 25,000 outer games at 1,000 nodes per sample move = 7,060,000 positions (about 47 per outer game,
 15 minutes per chunk on 20 cores), kept in the git-ignored `training-data/` (`iA1.bin` .. `iA6.bin`, 236 MB, checksums in
-`SHA256SUMS`). Training and play tests: next session.
+`SHA256SUMS`).
+
+Trained on those 7.06M positions (`PairFit`, 6 epochs, S = 130, 10 s in total): validation loss 0.5896 for the static
+evaluation alone, **0.5534** with the pair weights and mobility table (0.5538 without mobility), a larger drop than the table
+trained on game positions achieved. In play (timed 50 ms against the build with the embedded table, seed 4545, 1200 games,
++/- 20), the new table is **worse**:
+
+| New table | Result |
+|---|---|
+| with mobility, `PairBlend` 90 | **-40.1** |
+| with mobility, `PairBlend` 70 | **-33.1** |
+| without mobility, `PairBlend` 90 | **-12.2** |
+
+So a lower held-out loss on internally sampled positions did not buy strength; the mobility table made it worse (about -28), and
+the remaining shortfall (-12) is the data. Likely reasons, not yet tested: the sample games were played at 1,000 nodes per move
+(Moonbird's datasets used 1,000 and 6,000), so the search scores and results are noisy labels; and our existing pair table
+came from games at 8,000-60,000 nodes. Next experiments: the same recipe at 4,000+ nodes, and pooling the two kinds of data.
+(`PairFit --no-mobility` freezes the mobility table at zero.)
 
 ## Not yet measured
 
