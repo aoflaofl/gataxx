@@ -31,6 +31,11 @@ import spamalot.gataxx.search.TranspositionTable;
  *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair builtin|none|FILE] [--pair-blend 0.7]
  * </pre>
  *
+ * With {@code --internal} the positions are sampled from inside the search instead: each outer game is searched with an
+ * evaluator that picks a few of the positions it is called on (the leaves of the search, quiet or not); from each picked
+ * position a separate game is played at {@code --nodes} per move, and positions of that game are saved at its start and then
+ * every 20-40 plies. Options: {@code --internal --outer-nodes 2000 --select-prob 0.0002 --max-select 100}.
+ *
  * Record layout (big endian): game id (int), mine (long), theirs (long), walls (long), ply (short), search score (short, side
  * to move, clipped), static evaluation of the generating engine (short, clipped), result (byte: 0 loss, 1 draw, 2 win for the
  * side to move).
@@ -69,7 +74,11 @@ public final class GenData {
         long seed = 1;
         int hash = 8;
         String pair = "builtin";
-        double pairBlend = 0.7;
+        double pairBlend = 0.9;
+        boolean internal = false;
+        int outerNodes = 2000;
+        double selectProb = 0.0002;
+        int maxSelect = 100;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = Path.of(args[++i]);
@@ -80,6 +89,10 @@ public final class GenData {
                 case "--opening-max" -> openingMax = Integer.parseInt(args[++i]);
                 case "--seed" -> seed = Long.parseLong(args[++i]);
                 case "--hash" -> hash = Integer.parseInt(args[++i]);
+                case "--internal" -> internal = true;
+                case "--outer-nodes" -> outerNodes = Integer.parseInt(args[++i]);
+                case "--select-prob" -> selectProb = Double.parseDouble(args[++i]);
+                case "--max-select" -> maxSelect = Integer.parseInt(args[++i]);
                 case "--pair" -> pair = args[++i];
                 case "--pair-blend" -> pairBlend = Double.parseDouble(args[++i]);
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
@@ -106,6 +119,11 @@ public final class GenData {
         final int fMax = openingMax;
         final long fSeed = seed;
         final int fHash = hash;
+        final boolean fInternal = internal;
+        final int fOuterNodes = outerNodes;
+        final double fSelectProb = selectProb;
+        final int fMaxSelect = maxSelect;
+        final AtomicInteger sampleIds = new AtomicInteger();
         AtomicInteger nextGame = new AtomicInteger();
         AtomicInteger positions = new AtomicInteger();
         long start = System.nanoTime();
@@ -117,7 +135,10 @@ public final class GenData {
                     int g;
                     while ((g = nextGame.getAndIncrement()) < fGames) {
                         SplittableRandom rnd = new SplittableRandom(fSeed * 1_000_003L + g);
-                        byte[] game = playGame(g, searchEvaluator, recordedEvaluator, tt, rnd, fNodes, fMin, fMax);
+                        byte[] game = fInternal
+                                ? playInternal(sampleIds, searchEvaluator, recordedEvaluator, tt, rnd, fOuterNodes, fNodes,
+                                        fSelectProb, fMaxSelect, fMin, fMax)
+                                : playGame(g, searchEvaluator, recordedEvaluator, tt, rnd, fNodes, fMin, fMax);
                         synchronized (file) {
                             try {
                                 file.write(game);
@@ -140,6 +161,115 @@ public final class GenData {
         }
         System.out.printf("%d games, %d positions written to %s in %.0f s%n", games, positions.get(), out,
                 (System.nanoTime() - start) / 1e9);
+    }
+
+    /** Passes evaluations through and keeps a random few of the positions it is asked about. */
+    private static final class SamplingEvaluator implements Evaluator {
+        private final Evaluator inner;
+        private final SplittableRandom rnd;
+        private final double probability;
+        private final int cap;
+        private final List<Position> picked;
+
+        SamplingEvaluator(Evaluator inner, SplittableRandom rnd, double probability, int cap, List<Position> picked) {
+            this.inner = inner;
+            this.rnd = rnd;
+            this.probability = probability;
+            this.cap = cap;
+            this.picked = picked;
+        }
+
+        private void maybePick(Position pos) {
+            if (picked.size() < cap && rnd.nextDouble() < probability) {
+                picked.add(pos);
+            }
+        }
+
+        @Override
+        public int evaluate(Position pos) {
+            maybePick(pos);
+            return inner.evaluate(pos);
+        }
+
+        @Override
+        public int evaluate(Position pos, int alpha, int beta) {
+            maybePick(pos);
+            return inner.evaluate(pos, alpha, beta);
+        }
+    }
+
+    /** An outer game that picks positions from inside its search, and a sample game from each. */
+    private static byte[] playInternal(AtomicInteger ids, Evaluator evaluator, Evaluator staticEval, TranspositionTable tt,
+            SplittableRandom rnd, int outerNodes, int sampleNodes, double probability, int cap, int openingMin,
+            int openingMax) {
+        List<Position> picked = new ArrayList<>();
+        Evaluator sampling = new SamplingEvaluator(evaluator, rnd, probability, cap, picked);
+        tt.clear();
+        Position pos = Position.startPos();
+        int[] buf = new int[Position.MAX_MOVES];
+        int opening = openingMin + rnd.nextInt(openingMax - openingMin + 1);
+        for (int ply = 0; ply < opening && !pos.isGameOver(); ply++) {
+            int n = pos.generateMoves(buf);
+            pos = pos.makeMove(buf[rnd.nextInt(n)]);
+        }
+        int ply = opening;
+        while (!pos.isGameOver() && ply < 400) {
+            SearchResult r = newSearcher(sampling, tt).search(pos, SearchLimits.nodes(outerNodes), null);
+            if (r.bestMove() == Move.NONE) {
+                break;
+            }
+            pos = pos.makeMove(r.bestMove());
+            ply++;
+        }
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream d = new DataOutputStream(bytes)) {
+            for (Position p : picked) {
+                playSample(ids.getAndIncrement(), Position.fromFen(p.toFen()), evaluator, staticEval, tt, rnd, sampleNodes, d);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        return bytes.toByteArray();
+    }
+
+    /** Plays a game from {@code start}, writing the position at its start and then one every 20-40 plies. */
+    private static void playSample(int id, Position start, Evaluator evaluator, Evaluator staticEval, TranspositionTable tt,
+            SplittableRandom rnd, int nodes, DataOutputStream out) throws IOException {
+        tt.clear();
+        List<long[]> recorded = new ArrayList<>();
+        Position pos = start;
+        int move = 0;
+        int nextSample = 0;
+        while (!pos.isGameOver() && move < 400) {
+            SearchResult r = newSearcher(evaluator, tt).search(pos, SearchLimits.nodes(nodes), null);
+            if (r.bestMove() == Move.NONE) {
+                break;
+            }
+            if (move == nextSample) {
+                if (pos.halfmoveClock() < 50) {
+                    int side = pos.sideToMove();
+                    int score = Math.max(-3000, Math.min(3000, r.score()));
+                    int stat = Math.max(-3000, Math.min(3000, staticEval.evaluate(pos)));
+                    recorded.add(new long[] {pos.pieces(side), pos.pieces(1 - side), pos.walls(), move, score, side, stat});
+                }
+                nextSample += 20 + rnd.nextInt(21);
+            }
+            pos = pos.makeMove(r.bestMove());
+            move++;
+        }
+        Outcome outcome = pos.isGameOver() ? pos.outcome() : pos.outcomeByCount();
+        for (long[] r : recorded) {
+            int side = (int) r[5];
+            int result = outcome == Outcome.DRAW ? 1 : (outcome == Outcome.X_WINS) == (side == Position.X) ? 2 : 0;
+            out.writeInt(id);
+            out.writeLong(r[0]);
+            out.writeLong(r[1]);
+            out.writeLong(r[2]);
+            out.writeShort((int) r[3]);
+            out.writeShort((int) r[4]);
+            out.writeShort((int) r[6]);
+            out.writeByte(result);
+        }
     }
 
     private static byte[] playGame(int id, Evaluator evaluator, Evaluator staticEval, TranspositionTable tt, SplittableRandom rnd, int nodes,
