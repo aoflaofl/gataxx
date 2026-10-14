@@ -102,7 +102,9 @@ public final class PairFit {
                     for (int p = 0; p < PairPatterns.PLACEMENTS; p++) {
                         e += w[tie[p << 16 | pat[p]]];
                     }
-                    e += w[w.length - 1];
+                    e += w[tempoId(w)];
+                    e += w[mobilityBase(w) + PairPatterns.mobilityIndex(mine[i], theirs[i], walls[i])]
+                            - w[mobilityBase(w) + PairPatterns.mobilityIndex(theirs[i], mine[i], walls[i])];
                 }
                 double p = sigmoid(e / s);
                 double target = target(i, s, lambda);
@@ -114,6 +116,15 @@ public final class PairFit {
             sum[0] += v;
         }
         return sum[0] / idx.length;
+    }
+
+    /** Parameter layout: tied pattern classes, then the tempo bonus, then the mobility table. */
+    private static int tempoId(float[] w) {
+        return w.length - 1 - PairPatterns.MOBILITY_SIZE;
+    }
+
+    private static int mobilityBase(float[] w) {
+        return w.length - PairPatterns.MOBILITY_SIZE;
     }
 
     private double target(int i, double s, double lambda) {
@@ -201,8 +212,8 @@ public final class PairFit {
         }
         System.out.printf("%d tie classes in %.0f s%n", classes, (System.nanoTime() - t1) / 1e9);
 
-        final float[] w = new float[classes + 1]; // last: tempo
-        final float[] g2 = new float[classes + 1];
+        final float[] w = new float[classes + 1 + PairPatterns.MOBILITY_SIZE]; // tied classes, tempo, mobility
+        final float[] g2 = new float[w.length];
         Arrays.fill(g2, 1e-3f);
         float[] best = w.clone();
         double baseLoss = d.loss(valid, s, lam, w, tie, false);
@@ -224,7 +235,10 @@ public final class PairFit {
             IntStream.range(0, fThreads).parallel().forEach(t -> {
                 int[] blocks = new int[49];
                 int[] pat = new int[PairPatterns.PLACEMENTS];
-                int[] ids = new int[PairPatterns.PLACEMENTS + 1];
+                int[] ids = new int[PairPatterns.PLACEMENTS + 3];
+                float[] sign = new float[ids.length];
+                Arrays.fill(sign, 1f);
+                sign[PairPatterns.PLACEMENTS + 2] = -1f;
                 for (int k = t; k < order.length; k += fThreads) {
                     int i = order[k];
                     PairPatterns.patterns(d.mine[i], d.theirs[i], d.walls[i], blocks, pat);
@@ -233,11 +247,17 @@ public final class PairFit {
                         ids[p] = tie[p << 16 | pat[p]];
                         e += w[ids[p]];
                     }
-                    ids[PairPatterns.PLACEMENTS] = w.length - 1;
-                    e += w[w.length - 1];
+                    ids[PairPatterns.PLACEMENTS] = tempoId(w);
+                    ids[PairPatterns.PLACEMENTS + 1] = mobilityBase(w)
+                            + PairPatterns.mobilityIndex(d.mine[i], d.theirs[i], d.walls[i]);
+                    ids[PairPatterns.PLACEMENTS + 2] = mobilityBase(w)
+                            + PairPatterns.mobilityIndex(d.theirs[i], d.mine[i], d.walls[i]);
+                    e += w[ids[PairPatterns.PLACEMENTS]] + w[ids[PairPatterns.PLACEMENTS + 1]]
+                            - w[ids[PairPatterns.PLACEMENTS + 2]];
                     double err = (sigmoid(e / s) - d.target(i, s, lam)) / s;
-                    float g = (float) err;
-                    for (int id : ids) {
+                    for (int j = 0; j < ids.length; j++) {
+                        float g = (float) err * sign[j];
+                        int id = ids[j];
                         g2[id] += g * g;
                         w[id] -= (float) (rate * g / (Math.sqrt(g2[id]) + 1e-8));
                     }
@@ -272,6 +292,19 @@ public final class PairFit {
                 o.writeInt(e[0]);
                 o.writeShort(e[1]);
                 written++;
+            }
+            List<int[]> mob = new ArrayList<>();
+            for (int m = 0; m < PairPatterns.MOBILITY_SIZE; m++) {
+                int q = (int) Math.round(best[classes + 1 + m] * PairEvaluator.WEIGHT_SCALE);
+                q = Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, q));
+                if (q != 0) {
+                    mob.add(new int[] {m, q});
+                }
+            }
+            o.writeInt(mob.size());
+            for (int[] e : mob) {
+                o.writeShort(e[0]);
+                o.writeShort(e[1]);
             }
         }
         System.out.printf("best validation loss %.5f; wrote %d classes (of %d) to %s%n", bestLoss, written, classes, out);

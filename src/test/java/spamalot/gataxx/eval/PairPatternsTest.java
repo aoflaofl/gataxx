@@ -102,6 +102,7 @@ class PairPatternsTest {
             o.writeInt(PairEvaluator.WEIGHT_SCALE);
             o.writeShort(2 * PairEvaluator.WEIGHT_SCALE); // tempo of two units
             o.writeInt(0);
+            o.writeInt(0); // no mobility entries
         }
         Evaluator zero = pos -> 0;
         PairEvaluator e = PairEvaluator.load(new ByteArrayInputStream(bytes.toByteArray()), zero, 1.0);
@@ -121,6 +122,7 @@ class PairPatternsTest {
             o.writeInt(1);
             o.writeInt(key);
             o.writeShort(5 * PairEvaluator.WEIGHT_SCALE);
+            o.writeInt(0); // no mobility entries
         }
         PairEvaluator e2 = PairEvaluator.load(new ByteArrayInputStream(withClass.toByteArray()), zero, 1.0);
         // The start position has stones on a7, g7, a1 and g1; side to move x owns a7 and g1: symmetric images of the class.

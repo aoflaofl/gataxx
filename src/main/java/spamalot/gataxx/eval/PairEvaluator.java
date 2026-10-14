@@ -12,18 +12,20 @@ import spamalot.gataxx.board.Position;
  * thread-local scratch space, so one instance can serve every search thread.
  *
  * <p>File format (big endian): magic {@code "PAIR"}, version (int, 2), steps per unit (int), tempo bonus (short, in steps),
- * number of stored classes (int), then per class its canonical key (int) and weight (short, in steps). Version 1 has no
- * steps field and 8 steps per unit. Weights of
+ * number of stored classes (int), then per class its canonical key (int) and weight (short, in steps); from version 3 on,
+ * then the number of stored mobility entries (int) and per entry its index (short) and weight (short). Version 1 has no steps
+ * field and 8 steps per unit; versions below 3 have no mobility table. Weights of
  * patterns that are symmetric images of each other are equal, so only one representative of each class is stored.
  */
 public final class PairEvaluator implements Evaluator {
     /** Stored weights are in this many steps per evaluation unit (written by {@code PairFit}; the file header has its own). */
     public static final int WEIGHT_SCALE = 32;
     public static final int MAGIC = 0x50414952;
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     private final Evaluator base;
     private final short[] weights;
+    private final short[] mobility;
     private final int tempo;
     private final int scale;
     private final double blend;
@@ -32,12 +34,13 @@ public final class PairEvaluator implements Evaluator {
     private final ThreadLocal<int[]> blocks = ThreadLocal.withInitial(() -> new int[49]);
     private final ThreadLocal<int[]> patterns = ThreadLocal.withInitial(() -> new int[PairPatterns.PLACEMENTS]);
 
-    private PairEvaluator(Evaluator base, short[] weights, int tempo, int scale, double blend) {
+    private PairEvaluator(Evaluator base, short[] weights, short[] mobility, int tempo, int scale, double blend) {
         if (blend < 0) {
             throw new IllegalArgumentException("blend must not be negative");
         }
         this.base = base;
         this.weights = weights;
+        this.mobility = mobility;
         this.tempo = tempo;
         this.scale = scale;
         this.blend = blend;
@@ -63,7 +66,7 @@ public final class PairEvaluator implements Evaluator {
                 throw new IOException("not a pair-pattern weight file");
             }
             int version = d.readInt();
-            if (version != 1 && version != VERSION) {
+            if (version < 1 || version > VERSION) {
                 throw new IOException("unsupported pair-pattern file version " + version);
             }
             int scale = version == 1 ? 8 : d.readInt();
@@ -79,7 +82,15 @@ public final class PairEvaluator implements Evaluator {
                     w[image] = weight;
                 }
             }
-            return new PairEvaluator(base, w, tempo, scale, blend);
+            short[] mobility = new short[PairPatterns.MOBILITY_SIZE];
+            if (version >= 3) {
+                int entries = d.readInt();
+                for (int i = 0; i < entries; i++) {
+                    int index = d.readShort() & 0xFFFF;
+                    mobility[index] = d.readShort();
+                }
+            }
+            return new PairEvaluator(base, w, mobility, tempo, scale, blend);
         }
     }
 
@@ -111,6 +122,10 @@ public final class PairEvaluator implements Evaluator {
         for (int i = 0; i < PairPatterns.PLACEMENTS; i++) {
             sum += weights[i << 16 | p[i]];
         }
+        long mine = pos.pieces(side);
+        long theirs = pos.pieces(1 - side);
+        sum += mobility[PairPatterns.mobilityIndex(mine, theirs, pos.walls())]
+                - mobility[PairPatterns.mobilityIndex(theirs, mine, pos.walls())];
         return (int) Math.round(blend * sum / scale);
     }
 }

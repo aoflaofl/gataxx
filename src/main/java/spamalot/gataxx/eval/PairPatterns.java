@@ -126,6 +126,21 @@ public final class PairPatterns {
         }
     }
 
+    /** Size of the mobility table: 50 occupancy phases times 50 target counts. */
+    public static final int MOBILITY_SIZE = 50 * 50;
+
+    /**
+     * Index into the mobility table for the side owning {@code own}: the number of occupied squares (walls included) selects the
+     * phase and the number of distinct empty squares within two steps of its pieces the column. Returns
+     * {@code phase * 50 + targets}.
+     */
+    public static int mobilityIndex(long own, long other, long walls) {
+        long occupied = own | other | walls;
+        int phase = Long.bitCount(occupied);
+        int targets = Long.bitCount(Bitboards.expand2(own) & ~occupied & Bitboards.ALL);
+        return phase * 50 + targets;
+    }
+
     /** The key {@code placement << 16 | pattern} of every symmetric image of a pattern (possibly with repeats). */
     public static int[] imageKeys(int placement, int pattern) {
         int[] states = decode(pattern);
