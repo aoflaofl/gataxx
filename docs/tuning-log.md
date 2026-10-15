@@ -985,6 +985,33 @@ the remaining shortfall (-12) is the data. Likely reasons, not yet tested: the s
 came from games at 8,000-60,000 nodes. Next experiments: the same recipe at 4,000+ nodes, and pooling the two kinds of data.
 (`PairFit --no-mobility` freezes the mobility table at zero.)
 
+## Moonbird-style history ordering and table window narrowing
+
+From the project owner's description of its move ordering and table: a history table by colour, source and destination square
+(a clone has source = destination); `+D^2` for the cutoff move or the final best move of a node that raised alpha, `-D^2/24` for
+searched moves that did not raise alpha, clamps at +-107000 with a division of the colour's entries by 1.25 on overflow, and a
+small weight in the ordering (+-2 units, against a clone-versus-jump gap of about 3 that our static ordering already has); and
+table bounds that also narrow the window (a lower bound raises alpha, an upper bound lowers beta) at every non-root node.
+Implemented as options (off): `HistoryWeight` (tenths of a swing step), `HistoryPenaltyDiv`, `OrderEdgeBonus`, `TtNarrow`.
+Depth-9 bench: 5.36M nodes by default, 4.81M with history at weight 2.0, 6.28M with `TtNarrow`.
+
+Timed 50 ms against the 1.7.0 defaults, 1200 games, +/- 20:
+
+| Option | seed 5656 | seed 7676 |
+|---|---|---|
+| `HistoryWeight` 20 | +2.9 | |
+| `HistoryWeight` 40 | +6.4 | |
+| `HistoryWeight` 20, no edge bonus | +12.2 | |
+| `HistoryWeight` 20, penalty divisor 8 | +18.0 | |
+| `HistoryWeight` 20, penalty divisor 8, no edge bonus | | +5.2 |
+| `HistoryWeight` 20, penalty divisor 4 | | +5.2 |
+| `TtNarrow` 1 | **-16.2** | |
+
+All history variants read slightly positive (pooled about +7 +/- 8), below the +20 bar for adoption and not repeatable at a
+useful size: not adopted. Our static ordering is nearly the one Moonbird uses (clone over jump by 3 against 3.2), which is
+why history, the only difference, adds little. Table window narrowing costs 16 Elo and is not adopted. Moonbird's deeper
+searches are therefore not explained by ordering or table policy.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
