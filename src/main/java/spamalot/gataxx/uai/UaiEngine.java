@@ -89,6 +89,10 @@ public final class UaiEngine {
     private int nullDepthSub = 4;
     private int nullDepthDiv = 2;
     private int nullMinTargets = 11;
+    private int ttNarrow;
+    private int historyWeight;
+    private int historyPenaltyDiv = 24;
+    private int orderEdgeBonus = 1;
     private String pairFile = "";
     private int pairBlend = 90;
     private int partialIterations = 1;
@@ -177,6 +181,10 @@ public final class UaiEngine {
                     send("option name NullDepthSub type spin default 4 min 0 max 20");
                     send("option name NullDepthDiv type spin default 2 min 1 max 20");
                     send("option name NullMinTargets type spin default 11 min 0 max 49");
+                    send("option name TtNarrow type spin default 0 min 0 max 1");
+                    send("option name HistoryWeight type spin default 0 min 0 max 100");
+                    send("option name HistoryPenaltyDiv type spin default 24 min 1 max 1000");
+                    send("option name OrderEdgeBonus type spin default 1 min 0 max 1");
                     send("option name PartialIterations type spin default 1 min 0 max 1");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
@@ -307,6 +315,14 @@ public final class UaiEngine {
             nullDepthSub = spinValue(name, value, 0, 20);
         } else if (name.equalsIgnoreCase("NullDepthDiv")) {
             nullDepthDiv = spinValue(name, value, 1, 20);
+        } else if (name.equalsIgnoreCase("TtNarrow")) {
+            ttNarrow = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("HistoryWeight")) {
+            historyWeight = spinValue(name, value, 0, 100);
+        } else if (name.equalsIgnoreCase("HistoryPenaltyDiv")) {
+            historyPenaltyDiv = spinValue(name, value, 1, 1000);
+        } else if (name.equalsIgnoreCase("OrderEdgeBonus")) {
+            orderEdgeBonus = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("NullMinTargets")) {
             nullMinTargets = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("FutilityReduction")) {
@@ -487,6 +503,9 @@ public final class UaiEngine {
         s.setFutilityKeepZero(futilityKeepZero == 1);
         s.setLmrFormula(lmrHalfLife, lmrFormulaMinMove, lmrFormulaSub);
         s.setNullStyle(nullStyle, nullDepthSub, nullDepthDiv, nullMinTargets);
+        s.setTtNarrow(ttNarrow == 1);
+        s.setHistory(historyWeight, historyPenaltyDiv);
+        s.setOrderEdgeBonus(orderEdgeBonus == 1);
         s.setPartialIterations(partialIterations == 1);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);

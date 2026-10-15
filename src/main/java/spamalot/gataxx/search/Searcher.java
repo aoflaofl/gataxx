@@ -55,6 +55,11 @@ public final class Searcher {
     private int iirMinDepth;
     private int futilityReductionDiv;
     private boolean futilityKeepZero;
+    private boolean ttNarrow;
+    private int historyWeight;
+    private int historyPenaltyDiv = 24;
+    private boolean orderEdge = true;
+    private final float[][] history = new float[2][49 * 49];
     private int lmrHalfLife;
     private int lmrFormulaMinMove = 7;
     private int lmrFormulaSub;
@@ -228,6 +233,57 @@ public final class Searcher {
         this.nullDepthSub = depthSub;
         this.nullDepthDiv = depthDiv;
         this.nullMinTargets = minTargets;
+    }
+
+    /**
+     * Use bounds from the transposition table to narrow the window of a node instead of only cutting off: a deep enough lower
+     * bound raises alpha and an upper bound lowers beta. Default off.
+     */
+    public void setTtNarrow(boolean narrow) {
+        this.ttNarrow = narrow;
+    }
+
+    /**
+     * History ordering after Moonbird's rules: a table by colour, source and destination square (a clone has source equal to
+     * destination). The move that cuts off, or the final best move of a node that raised alpha, gains {@code depth^2}; each
+     * searched move that did not raise alpha loses {@code depth^2 / penaltyDiv}; entries are clamped at +-107000 and every entry of
+     * the colour is divided by 1.25 when one hits the clamp. In the ordering it adds at most {@code weightTenths / 10} swing
+     * steps. 0 turns it off (the default).
+     */
+    public void setHistory(int weightTenths, int penaltyDiv) {
+        if (weightTenths < 0 || penaltyDiv < 1) {
+            throw new IllegalArgumentException("history parameters out of range");
+        }
+        this.historyWeight = weightTenths;
+        this.historyPenaltyDiv = penaltyDiv;
+    }
+
+    /** Whether the ordering gives a bonus for landing on the edge (default true). */
+    public void setOrderEdgeBonus(boolean on) {
+        this.orderEdge = on;
+    }
+
+    private static final float HISTORY_LIMIT = 107_000f;
+
+    private void historyAdd(int side, int move, float delta) {
+        int from = Move.isClone(move) ? Move.to(move) : Move.from(move);
+        float[] h = history[side];
+        int idx = from * 49 + Move.to(move);
+        float v = h[idx] + delta;
+        if (v >= HISTORY_LIMIT || v <= -HISTORY_LIMIT) {
+            v = v > 0 ? HISTORY_LIMIT : -HISTORY_LIMIT;
+            h[idx] = v;
+            for (int i = 0; i < h.length; i++) {
+                h[i] /= 1.25f;
+            }
+        } else {
+            h[idx] = v;
+        }
+    }
+
+    private float historyOf(int side, int move) {
+        int from = Move.isClone(move) ? Move.to(move) : Move.from(move);
+        return history[side][from * 49 + Move.to(move)];
     }
 
     /**
@@ -427,6 +483,7 @@ public final class Searcher {
         if (depth == 0) {
             return pos.isGameOver() ? terminalScore(pos, ply) : evaluator.evaluate(pos);
         }
+        final int alphaAtEntry = alpha;
 
         // The 100-half-move rule makes a result depend on the clock, which the hash ignores. Only
         // use the table where the subtree cannot reach the limit.
@@ -450,10 +507,16 @@ public final class Searcher {
                             if (s >= beta) {
                                 return beta;
                             }
+                            if (ttNarrow && s > alpha) {
+                                alpha = s;
+                            }
                         }
                         case TranspositionTable.BOUND_UPPER -> {
                             if (s <= alpha) {
                                 return alpha;
+                            }
+                            if (ttNarrow && s < beta) {
+                                beta = s;
                             }
                         }
                         default -> { }
@@ -506,7 +569,7 @@ public final class Searcher {
         boolean futile = useFutility && !onPv && beta - alpha == 1 && depth <= futilityMaxDepth && ply > 0
                 && alpha > -(WIN - MAX_PLY) && alpha < WIN - MAX_PLY && !pos.isGameOver();
         int staticScore = futile ? evaluator.evaluate(pos) : 0;
-        int originalAlpha = alpha;
+        int originalAlpha = alphaAtEntry;
         int bestMove = Move.NONE;
         for (int i = 0; i < n; i++) {
             // Lazy selection sort: only pays for ordering as far as we get before a cutoff.
@@ -567,6 +630,9 @@ public final class Searcher {
                 return 0;
             }
             if (score >= beta) {
+                if (historyWeight > 0 && move != Move.PASS) {
+                    historyAdd(pos.sideToMove(), move, (float) depth * depth);
+                }
                 if (useTt) {
                     tt.store(hash, depth, TranspositionTable.BOUND_LOWER, scoreToTable(beta, ply), move);
                 }
@@ -578,7 +644,12 @@ public final class Searcher {
                 pv[ply][0] = move;
                 System.arraycopy(pv[ply + 1], 0, pv[ply], 1, pvLen[ply + 1]);
                 pvLen[ply] = pvLen[ply + 1] + 1;
+            } else if (historyWeight > 0 && move != Move.PASS) {
+                historyAdd(pos.sideToMove(), move, -(float) depth * depth / historyPenaltyDiv);
             }
+        }
+        if (historyWeight > 0 && bestMove != Move.NONE && bestMove != Move.PASS) {
+            historyAdd(pos.sideToMove(), bestMove, (float) depth * depth);
         }
         if (useTt) {
             int bound = alpha > originalAlpha ? TranspositionTable.BOUND_EXACT : TranspositionTable.BOUND_UPPER;
@@ -688,7 +759,8 @@ public final class Searcher {
      * with landing on the edge as a tie-breaker (the bonus is smaller than one swing step, so it only
      * reorders moves with equal swing).
      */
-    private static void orderMoves(Position pos, int[] moves, int[] scores, int n, int pvMove, int ttMove) {
+    private void orderMoves(Position pos, int[] moves, int[] scores, int n, int pvMove, int ttMove) {
+        int side = pos.sideToMove();
         for (int i = 0; i < n; i++) {
             int m = moves[i];
             if (m == pvMove) {
@@ -701,8 +773,11 @@ public final class Searcher {
                 int clone = Move.isClone(m) ? 1 : 0;
                 int to = Move.to(m);
                 int s = ((pos.captureCount(m) + clone) * 2 + clone) * SWING_STEP;
-                if ((EDGE_MASK >>> to & 1) != 0) {
+                if (orderEdge && (EDGE_MASK >>> to & 1) != 0) {
                     s += EDGE_BONUS;
+                }
+                if (historyWeight > 0) {
+                    s += (int) (historyWeight * 0.1f * SWING_STEP * historyOf(side, m) / HISTORY_LIMIT);
                 }
                 scores[i] = s;
             }
