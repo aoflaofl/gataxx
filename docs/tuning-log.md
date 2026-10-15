@@ -1027,6 +1027,22 @@ Both quirks described above were fixed upstream (not yet in a release). The owne
 
 `--fen-only2` and `--grace 3000` are only needed for the 1.0.0 release binary; they are harmless with the new build.
 
+## Search work, 2026-10-15
+
+**The evaluator was rebuilt for every search.** The engine constructed its evaluator (parsing the pattern table and expanding the
+pair table's 65,000 classes eight ways) at every `go`, so `go movetime 50` returned after 90 to 170 ms of wall-clock time:
+the search itself kept to 50 ms, but the rest was spent building tables before the clock started. No effect on fixed-movetime
+strength, but in clocked play it wasted 50 to 120 ms of the clock per move and overran a move-time limit. The evaluator is now
+built once (at `isready`, 112 ms) and rebuilt only when an evaluation option changes: `go movetime 50` returns in 51 ms.
+
+**Neutral, kept off:** `EvalCache` (reuse the futility reduction's child evaluation as the child's stand-pat; exact: identical
+nodes and checksum, no measurable speedup) and `QuiesceDelta` (delta pruning in quiescence: 5.24M against 5.36M depth-9 nodes at
+margin 64, since quiescence captures already swing at least seven pieces).
+
+**Aspiration windows** (`Aspiration` delta, from iteration 4: a window of delta units around the last score, doubling on the
+failing side). Depth-11 bench nodes: 19.3M without, 14.6M at 16, 32.7M at 32, 16.4M at 64 (the middle value suffers re-search
+churn). Timed 50 ms against the defaults (1200 games, seed 8181, +/- 20): 16 **+23.2**, 32 **+6.7**, 64 **+18.5**.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
