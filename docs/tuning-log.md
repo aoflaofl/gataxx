@@ -1045,6 +1045,10 @@ churn). Timed 50 ms against the defaults (1200 games, seed 8181, +/- 20): 16 **+
 Repeated on a fresh seed (9292, 2000 games, +/- 15): 16 **+3.8**, 64 **+4.2**. Pooled about +10 +/- 12: below the +20 bar,
 not adopted (`Aspiration` stays 0).
 
+Current engine (this commit) against the newer Moonbird build (`bin/Moonbird-native`, `d6a6107`), 100 ms per move, Hash 128,
+no workaround flags, seed 7, 400 games: **+70 =0 -330, -269.4 +/- 44.8**; the 1.0.0 release scored -267 +/- 26 on the same
+seed. Moonbird's two fixes did not change its strength.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
