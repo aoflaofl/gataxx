@@ -91,6 +91,7 @@ public final class UaiEngine {
     private int nullMinTargets = 11;
     private int ttNarrow;
     private int evalCache;
+    private int aspiration;
     private int quiesceDelta;
     private int historyWeight;
     private int historyPenaltyDiv = 24;
@@ -185,6 +186,7 @@ public final class UaiEngine {
                     send("option name NullMinTargets type spin default 11 min 0 max 49");
                     send("option name TtNarrow type spin default 0 min 0 max 1");
                     send("option name EvalCache type spin default 0 min 0 max 1");
+                    send("option name Aspiration type spin default 0 min 0 max 1000");
                     send("option name QuiesceDelta type spin default 0 min 0 max 2000");
                     send("option name HistoryWeight type spin default 0 min 0 max 100");
                     send("option name HistoryPenaltyDiv type spin default 24 min 1 max 1000");
@@ -326,6 +328,8 @@ public final class UaiEngine {
             nullDepthSub = spinValue(name, value, 0, 20);
         } else if (name.equalsIgnoreCase("NullDepthDiv")) {
             nullDepthDiv = spinValue(name, value, 1, 20);
+        } else if (name.equalsIgnoreCase("Aspiration")) {
+            aspiration = spinValue(name, value, 0, 1000);
         } else if (name.equalsIgnoreCase("EvalCache")) {
             evalCache = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("QuiesceDelta")) {
@@ -538,6 +542,7 @@ public final class UaiEngine {
         s.setNullStyle(nullStyle, nullDepthSub, nullDepthDiv, nullMinTargets);
         s.setTtNarrow(ttNarrow == 1);
         s.setEvalCache(evalCache == 1);
+        s.setAspiration(aspiration);
         s.setQuiescenceDelta(quiesceDelta);
         s.setHistory(historyWeight, historyPenaltyDiv);
         s.setOrderEdgeBonus(orderEdgeBonus == 1);

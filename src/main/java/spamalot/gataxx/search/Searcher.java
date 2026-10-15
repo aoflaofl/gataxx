@@ -58,6 +58,7 @@ public final class Searcher {
     private boolean futilityKeepZero;
     private boolean ttNarrow;
     private boolean evalCache;
+    private int aspirationDelta;
     private Position cachedPos;
     private int cachedAlpha;
     private int cachedBeta;
@@ -313,6 +314,17 @@ public final class Searcher {
     }
 
     /**
+     * Aspiration windows: from iteration 4 on, the root is first searched with a window of {@code delta} units either side of
+     * the previous iteration's score, widened (doubling) on the side that fails. 0 searches with the full window (default).
+     */
+    public void setAspiration(int delta) {
+        if (delta < 0) {
+            throw new IllegalArgumentException("delta must not be negative");
+        }
+        this.aspirationDelta = delta;
+    }
+
+    /**
      * Principal variation search: search every move after the first with a zero-width window and re-search
      * only when one turns out to beat the best so far. A pure efficiency change: the score of a completed
      * search is the same.
@@ -462,7 +474,31 @@ public final class Searcher {
             if (helper && skipsDepth(depth)) {
                 continue;
             }
-            int score = negamax(root, depth, -INF, INF, 0, true, true);
+            int score;
+            if (aspirationDelta > 0 && depth >= 4 && best.depth() == depth - 1 && !isMateScore(best.score())) {
+                int delta = aspirationDelta;
+                int lo = best.score() - delta;
+                int hi = best.score() + delta;
+                while (true) {
+                    score = negamax(root, depth, lo, hi, 0, true, true);
+                    if (aborted || (score > lo && score < hi)) {
+                        break;
+                    }
+                    if (score <= lo) {
+                        delta *= 2;
+                        lo = Math.max(-INF, best.score() - delta);
+                    } else {
+                        delta *= 2;
+                        hi = Math.min(INF, best.score() + delta);
+                    }
+                    if (delta > 4000) {
+                        lo = -INF;
+                        hi = INF;
+                    }
+                }
+            } else {
+                score = negamax(root, depth, -INF, INF, 0, true, true);
+            }
             if (aborted) {
                 if (usePartialIterations && pvLen[0] > 0 && depth > 1) {
                     // The root move that was best when time ran out had its search at this depth completed.
