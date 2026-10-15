@@ -10,8 +10,9 @@
 #
 # Engine notes (see docs/tuning-log.md):
 #  - TikTaxx and Funes need no special handling.
-#  - Moonbird rejects the second move of any "position ... moves ..." list, so it is sent bare FENs (--fen-only2); it also
-#    overruns "go movetime" by about a second in some one-sided positions, so the timeout grace is raised to 3 s.
+#  - The Moonbird 1.0.0 release rejects the second move of any "position ... moves ..." list, so it is sent bare FENs
+#    (--fen-only2); it also overruns "go movetime" by about a second in some one-sided positions, so the timeout grace is
+#    raised to 3 s. Both are fixed in newer source builds (for example bin/Moonbird-native, d6a6107); the flags are harmless.
 set -u
 JAR=${GATAXX_JAR:-target/gataxx.jar}
 GAMES=${1:-400}

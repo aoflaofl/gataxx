@@ -1012,6 +1012,21 @@ useful size: not adopted. Our static ordering is nearly the one Moonbird uses (c
 why history, the only difference, adds little. Table window narrowing costs 16 Elo and is not adopted. Moonbird's deeper
 searches are therefore not explained by ordering or table policy.
 
+## Moonbird, newer build (`d6a6107`, built by the project owner from its repository)
+
+Both quirks described above were fixed upstream (not yet in a release). The owner's build is `bin/Moonbird-native`
+(git-ignored by the `Moonbird-*` rule; `id name Moonbird d6a6107`). Validated:
+
+- `position startpos moves ...` and `position fen ... moves ...` accept every legal move list (four- and three-move lists, a FEN
+  with moves); an illegal move is still rejected with an error.
+- `go movetime 100` answers in 101-105 ms on ten varied positions, including the one-sided position that took 1.15 s with the
+  1.0.0 release; terminal positions answer at once with a pass.
+- A 200-game match against the current engine at 100 ms per move, **without** `--fen-only2` and with the default 1 s grace: all
+  200 games ended normally (no illegal moves, no timeouts); +41 -159, -235 +/- 60 (seed 11), consistent with the -267 +/- 26
+  measured against 1.0.0 with the workarounds (a new build may also be a little stronger).
+
+`--fen-only2` and `--grace 3000` are only needed for the 1.0.0 release binary; they are harmless with the new build.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
