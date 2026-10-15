@@ -5,6 +5,7 @@ import spamalot.gataxx.board.Bitboards;
 import spamalot.gataxx.board.Move;
 import spamalot.gataxx.board.Position;
 import spamalot.gataxx.eval.Evaluator;
+import spamalot.gataxx.eval.FeatureEvaluator;
 
 /**
  * Iterative-deepening NegaMax search with alpha-beta pruning.
@@ -56,6 +57,12 @@ public final class Searcher {
     private int futilityReductionDiv;
     private boolean futilityKeepZero;
     private boolean ttNarrow;
+    private boolean evalCache;
+    private Position cachedPos;
+    private int cachedAlpha;
+    private int cachedBeta;
+    private int cachedValue;
+    private int qDelta;
     private int historyWeight;
     private int historyPenaltyDiv = 24;
     private boolean orderEdge = true;
@@ -284,6 +291,25 @@ public final class Searcher {
     private float historyOf(int side, int move) {
         int from = Move.isClone(move) ? Move.to(move) : Move.from(move);
         return history[side][from * 49 + Move.to(move)];
+    }
+
+    /**
+     * Reuse the evaluation that the futility reduction made of a child as that child's stand-pat score when it goes straight
+     * into quiescence with the same window. Exact: the search is unchanged. Default off.
+     */
+    public void setEvalCache(boolean on) {
+        this.evalCache = on;
+    }
+
+    /**
+     * Delta pruning in quiescence: a capture is skipped, with all that rank below it, when the stand-pat score plus its swing
+     * (16 per piece) plus {@code margin} cannot reach alpha. 0 turns it off (the default).
+     */
+    public void setQuiescenceDelta(int margin) {
+        if (margin < 0) {
+            throw new IllegalArgumentException("margin must not be negative");
+        }
+        this.qDelta = margin;
     }
 
     /**
@@ -603,7 +629,14 @@ public final class Searcher {
                 }
                 if (futilityReductionDiv > 0 && move != Move.PASS && alpha > -(WIN - MAX_PLY) && alpha < WIN - MAX_PLY
                         && !child.isGameOver()) {
-                    int ours = -evaluator.evaluate(child, -alpha - 1, -alpha);
+                    int childEval = evaluator.evaluate(child, -alpha - 1, -alpha);
+                    if (evalCache) {
+                        cachedPos = child;
+                        cachedAlpha = -alpha - 1;
+                        cachedBeta = -alpha;
+                        cachedValue = childEval;
+                    }
+                    int ours = -childEval;
                     if (ours < alpha) {
                         int extra = (alpha - ours) / futilityReductionDiv;
                         if (extra > 0) {
@@ -674,7 +707,8 @@ public final class Searcher {
         if (pos.isGameOver()) {
             return terminalScore(pos, ply);
         }
-        int standPat = evaluator.evaluate(pos, alpha, beta);
+        int standPat = evalCache && pos == cachedPos && alpha == cachedAlpha && beta == cachedBeta
+                ? cachedValue : evaluator.evaluate(pos, alpha, beta);
         if (standPat >= beta) {
             return beta;
         }
@@ -694,6 +728,9 @@ public final class Searcher {
             int best = scores[i];
             for (int j = i + 1; j < k; j++) {
                 best = Math.max(best, scores[j]);
+            }
+            if (qDelta > 0 && standPat + FeatureEvaluator.SCALE * (best >> Position.KEY_SHIFT) + qDelta <= alpha) {
+                break;
             }
             int bi = Position.KEY_INDEX_MASK - (best & Position.KEY_INDEX_MASK);
             int moved = moves[i];

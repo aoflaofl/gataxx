@@ -90,6 +90,8 @@ public final class UaiEngine {
     private int nullDepthDiv = 2;
     private int nullMinTargets = 11;
     private int ttNarrow;
+    private int evalCache;
+    private int quiesceDelta;
     private int historyWeight;
     private int historyPenaltyDiv = 24;
     private int orderEdgeBonus = 1;
@@ -182,6 +184,8 @@ public final class UaiEngine {
                     send("option name NullDepthDiv type spin default 2 min 1 max 20");
                     send("option name NullMinTargets type spin default 11 min 0 max 49");
                     send("option name TtNarrow type spin default 0 min 0 max 1");
+                    send("option name EvalCache type spin default 0 min 0 max 1");
+                    send("option name QuiesceDelta type spin default 0 min 0 max 2000");
                     send("option name HistoryWeight type spin default 0 min 0 max 100");
                     send("option name HistoryPenaltyDiv type spin default 24 min 1 max 1000");
                     send("option name OrderEdgeBonus type spin default 1 min 0 max 1");
@@ -204,7 +208,14 @@ public final class UaiEngine {
                     send("option name JumpCutNearDepth type spin default 0 min 0 max 60");
                     send("uaiok");
                 }
-                case "isready" -> send("readyok");
+                case "isready" -> {
+                    try {
+                        newEvaluator(); // builds (once) the pattern tables, so that the first search starts on time
+                    } catch (RuntimeException e) {
+                        // a bad table option is reported when it is set, and again by the search that uses it
+                    }
+                    send("readyok");
+                }
                 case "uainewgame" -> {
                     stopAndAwaitSearch();
                     position = Position.startPos();
@@ -315,6 +326,10 @@ public final class UaiEngine {
             nullDepthSub = spinValue(name, value, 0, 20);
         } else if (name.equalsIgnoreCase("NullDepthDiv")) {
             nullDepthDiv = spinValue(name, value, 1, 20);
+        } else if (name.equalsIgnoreCase("EvalCache")) {
+            evalCache = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("QuiesceDelta")) {
+            quiesceDelta = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("TtNarrow")) {
             ttNarrow = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("HistoryWeight")) {
@@ -462,6 +477,24 @@ public final class UaiEngine {
 
     /** The evaluation built from the current options; stateless, so every search thread can share one. */
     private Evaluator newEvaluator() {
+        // Building the evaluator parses and expands the pattern tables, which takes tens of milliseconds: do it once and
+        // again only when an option that affects it changes.
+        String key = String.join(",", String.valueOf(evalSafe), String.valueOf(evalMobility), String.valueOf(evalExposure),
+                String.valueOf(evalReach), String.valueOf(evalTerritory), String.valueOf(evalEdge), String.valueOf(tempo),
+                String.valueOf(evalFade), String.valueOf(evalCorner), String.valueOf(evalRing1),
+                String.valueOf(evalCohesion), String.valueOf(evalThreat), patternFile, String.valueOf(patternBlend),
+                String.valueOf(patternMargin), pairFile, String.valueOf(pairBlend));
+        if (cachedEvaluator == null || !key.equals(cachedEvaluatorKey)) {
+            cachedEvaluator = buildEvaluator();
+            cachedEvaluatorKey = key;
+        }
+        return cachedEvaluator;
+    }
+
+    private Evaluator cachedEvaluator;
+    private String cachedEvaluatorKey;
+
+    private Evaluator buildEvaluator() {
         Evaluator evaluator = new FeatureEvaluator(
                 new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
                         evalReach, evalTerritory, evalEdge, tempo, evalFade,
@@ -504,6 +537,8 @@ public final class UaiEngine {
         s.setLmrFormula(lmrHalfLife, lmrFormulaMinMove, lmrFormulaSub);
         s.setNullStyle(nullStyle, nullDepthSub, nullDepthDiv, nullMinTargets);
         s.setTtNarrow(ttNarrow == 1);
+        s.setEvalCache(evalCache == 1);
+        s.setQuiescenceDelta(quiesceDelta);
         s.setHistory(historyWeight, historyPenaltyDiv);
         s.setOrderEdgeBonus(orderEdgeBonus == 1);
         s.setPartialIterations(partialIterations == 1);
