@@ -1042,6 +1042,8 @@ margin 64, since quiescence captures already swing at least seven pieces).
 **Aspiration windows** (`Aspiration` delta, from iteration 4: a window of delta units around the last score, doubling on the
 failing side). Depth-11 bench nodes: 19.3M without, 14.6M at 16, 32.7M at 32, 16.4M at 64 (the middle value suffers re-search
 churn). Timed 50 ms against the defaults (1200 games, seed 8181, +/- 20): 16 **+23.2**, 32 **+6.7**, 64 **+18.5**.
+Repeated on a fresh seed (9292, 2000 games, +/- 15): 16 **+3.8**, 64 **+4.2**. Pooled about +10 +/- 12: below the +20 bar,
+not adopted (`Aspiration` stays 0).
 
 ## Not yet measured
 
