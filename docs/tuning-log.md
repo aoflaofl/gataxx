@@ -1156,6 +1156,17 @@ by an engine that skipped its tables too often.
 Against `bin/Moonbird-native` (`d6a6107`) at 100 ms, one thread each, Hash 128, seed 7, 800 games, with the round-2 table:
 **+438 =1 -361, +33.5 +/- 24.2**. History of this match-up: -252 (1.8.0), -64 (margins 128, round-0 table), +33.5.
 
+## Release validation, 1.9.0 (2026-10-16)
+
+The 1.9.0 build (built-in pair table with the mobility term) against the published 1.8.0 jar (sha256 86e36a9e...faad4):
+game clock 3000 ms + 50 ms, 2000 games, seed 5555: **+1744 -256, +333.3 +/- 22.8** (no time forfeits); fixed 50 ms, 2000 games,
+seed 6666: **+1720 -280, +315.3 +/- 21.9**. The mobility table alone: pooled-data table without mobility vs with, 50 ms,
+seed 1212, 1200 games: **+28.4 +/- 19.7**; fresh seed 1818, 2000 games: **+35.4 +/- 15.3** (the mobility term did not help
+on the old data and margins: -28 to -12 earlier). Outside engines, 100 ms per move, Hash 128, the same TikTaxx (`95dffff`) and
+Funes (`dd319f1`) builds as for 1.8.0: TikTaxx 400 games, seed 5150: **+367 -33, +418.5 +/- 61.9**; Funes 1200 games, seed 7:
+**+1085 -115, +389.9 +/- 33.4**; Funes 400 games, seed 5150: **+366 -34, +412.8 +/- 61.0**. `bin/Moonbird-native`
+(`d6a6107`), 1200 games, seed 7: **+703 -497, +60.2 +/- 20.0** (1.8.0: -251.9).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
