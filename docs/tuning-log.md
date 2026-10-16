@@ -1092,6 +1092,11 @@ Build of the 1.8.0 version bump against the published 1.7.0 jar (sha256 6a145782
 - Fixed 50 ms per move, 1200 games, seed 6666: **+3.5 +/- 19.7** (level, as expected: nothing changed in the search or evaluation).
 - `bin/Moonbird-native` (`d6a6107`), 100 ms per move, 800 games, seed 7: **+152 -648, -251.9 +/- 30.7** (earlier builds: -269
   +/- 45 over 400 games, -267 +/- 26 against 1.0.0 for 1.7.0).
+- TikTaxx (`95dffff`, libataxx + make, `-O3 -march=native`) and Funes (`dd319f1`, cmake Release), rebuilt for this run, 100 ms per
+  move, Hash 128, 6-ply openings, `scripts/outside_engines.sh`: TikTaxx 400 games, seed 5150: **+366 -34, +412.8 +/- 61.0**
+  (1.7.0: +418); Funes 1200 games, seed 7: **+1028 -172, +310.6 +/- 28.0** (1.7.0: +309); Funes 400 games, seed 5150:
+  **+343 -57, +311.8 +/- 48.7** (1.7.0: +298; one game was won on a Funes illegal move). As expected, no change at fixed
+  move times.
 
 ## Not yet measured
 

@@ -36,8 +36,8 @@ thread each, default settings, random 6-ply openings, 100 ms per move unless sta
 - Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx) (not re-measured for 1.8.0), version 1.7.0 wins about 92% of
   games (+418 Elo, 400 games, 100 ms per move); 1.6.0 scored +397, 1.5.0 +342 and 1.1.0 +165. This match is too lopsided to
   show small differences.
-- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes) (not re-measured for 1.8.0), version 1.7.0 wins about 86% of games
-  (+309 Elo over 1200 games, +298 over 400, 100 ms per move); 1.6.0 scored +29 (level), 1.5.0 -26 to -50, 1.3.0 -158 and
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.8.0 wins about 86% of games
+  (+311 Elo over 1200 games, +312 over 400, 100 ms per move); 1.7.0 scored +309 and +298, 1.6.0 +29 (level), 1.5.0 -26 to -50, 1.3.0 -158 and
   1.1.0 -291.
 - Against the open-source Nim engine [Moonbird](https://github.com/tsoj/Moonbird) 1.0.0, version 1.7.0 loses about 82% of
   games (-267 Elo over 1200 games, -275 over 400, 100 ms per move); 1.6.0 scored -353. Moonbird is much stronger than the
