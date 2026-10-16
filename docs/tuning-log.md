@@ -1049,6 +1049,35 @@ Current engine (this commit) against the newer Moonbird build (`bin/Moonbird-nat
 no workaround flags, seed 7, 400 games: **+70 =0 -330, -269.4 +/- 44.8**; the 1.0.0 release scored -267 +/- 26 on the same
 seed. Moonbird's two fixes did not change its strength.
 
+## Clock time management and a fresh pair table, 2026-10-15
+
+**Pair table on newer data (not adopted).** 200,000 self-play games at 8000 nodes with the current engine (15.4M positions,
+15 min on 20 threads; `GenData`, seed 101), `PairFit --no-mobility --epochs 6`: validation loss 0.5919 (static 0.6216), against
+the embedded table at 50 ms, 1200 games: **+3.5 +/- 19.7**, i.e. level. A third of the data (5M) gives validation 0.5955, so
+volume is a minor lever now. The internal-sampling table (`iA1..iA6`, no mobility) with quiescence switched off
+(`QuiesceMaxPly 0`) scored **-222 +/- 34** against the defaults: sampling non-quiet positions does not make quiescence
+unnecessary for this evaluation.
+
+**Profile (JFR, 8 s from the start position, depth 19, 3.4M nps):** about 55% of samples are evaluation (pattern sum over
+squares 17%, pair correction 10%, pattern index building 15%, features 5%), the transposition table probe 9%.
+
+**Clock play.** `Match`/`Game` now play a side on a real game clock (`--go1 "clock BASE_MS INC_MS"`: wtime/btime/winc/binc are
+sent, the time used is measured, a fallen flag loses). New options: `TimeModel` (0 = a fixed 30 moves left, 1 = moves left
+estimated from the empty squares, `0.55 * empties + 6` clamped to 8..40), `TimeSoft` (percent of the budget after which no new
+iteration starts, default 40), `TimeHard` (hard limit in tenths of the budget, default 30). All against the previous
+behaviour, 3000 ms + 50 ms per game, 1200 games, seed 11, no time forfeits in any run:
+
+| setting | Elo |
+|---|---|
+| `TimeSoft 70` | +48.4 +/- 19.8 |
+| `TimeModel 1` | **+66.2 +/- 20.0** |
+| `TimeModel 1 TimeSoft 70` | +45.4 +/- 19.8 |
+| `TimeModel 1 TimeSoft 100` | -40.1 +/- 19.8 |
+
+Confirmation of `TimeModel 1`: fresh seed 22, 2000 games: **+50.4 +/- 15.4**; sudden death 1500 ms + 0, 1200 games, seed 33:
+**+73.5 +/- 20.1**. `TimeModel` 1 is now the default (fixed `movetime` play is unaffected). The old fixed estimate wasted the
+clock late in the game, when only a handful of moves remain.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

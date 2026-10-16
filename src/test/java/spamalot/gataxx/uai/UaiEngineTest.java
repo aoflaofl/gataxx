@@ -94,8 +94,11 @@ class UaiEngineTest {
         assertEquals("option name JumpCutMinEmpties type spin default 12 min 0 max 49", out.get(55));
         assertEquals("option name JumpCutNear type spin default 0 min 0 max 3", out.get(56));
         assertEquals("option name JumpCutNearDepth type spin default 0 min 0 max 60", out.get(57));
-        assertEquals("uaiok", out.get(58));
-        assertEquals(59, out.size());
+        assertEquals("option name TimeModel type spin default 1 min 0 max 1", out.get(58));
+        assertEquals("option name TimeSoft type spin default 40 min 5 max 200", out.get(59));
+        assertEquals("option name TimeHard type spin default 30 min 10 max 100", out.get(60));
+        assertEquals("uaiok", out.get(61));
+        assertEquals(62, out.size());
     }
 
     private static int lastHashfull(List<String> out) {

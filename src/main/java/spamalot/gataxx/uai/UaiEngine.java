@@ -105,6 +105,9 @@ public final class UaiEngine {
     private int patternMargin = 32;
     private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
+    private int timeModel = 1;
+    private int timeSoft = 40;
+    private int timeHard = 30;
     private ParallelSearch searcher;
     private Thread searchThread;
     private boolean searchIsInfinite;
@@ -208,6 +211,9 @@ public final class UaiEngine {
                     send("option name JumpCutMinEmpties type spin default 12 min 0 max 49");
                     send("option name JumpCutNear type spin default 0 min 0 max 3");
                     send("option name JumpCutNearDepth type spin default 0 min 0 max 60");
+                    send("option name TimeModel type spin default 1 min 0 max 1");
+                    send("option name TimeSoft type spin default 40 min 5 max 200");
+                    send("option name TimeHard type spin default 30 min 10 max 100");
                     send("uaiok");
                 }
                 case "isready" -> {
@@ -384,6 +390,12 @@ public final class UaiEngine {
             jumpCutNearDepth = spinValue(name, value, 0, 60);
         } else if (name.equalsIgnoreCase("JumpCutMinEmpties")) {
             jumpCutMinEmpties = spinValue(name, value, 0, 49);
+        } else if (name.equalsIgnoreCase("TimeModel")) {
+            timeModel = spinValue(name, value, 0, 1);
+        } else if (name.equalsIgnoreCase("TimeSoft")) {
+            timeSoft = spinValue(name, value, 5, 200);
+        } else if (name.equalsIgnoreCase("TimeHard")) {
+            timeHard = spinValue(name, value, 10, 100);
         } else if (name.equalsIgnoreCase("QuiesceMaxPly")) {
             quiesceMaxPly = spinValue(name, value, 0, Searcher.MAX_QUIESCENCE_PLY);
         } else {
@@ -438,7 +450,7 @@ public final class UaiEngine {
     }
 
     private void go(String[] tokens) {
-        SearchLimits limits = GoParameters.parse(tokens).toLimits(position);
+        SearchLimits limits = GoParameters.parse(tokens).toLimits(position, timeModel, timeSoft, timeHard);
         Position root = position;
         Evaluator evaluator = newEvaluator();
         Searcher main = newSearcher(evaluator);

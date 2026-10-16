@@ -40,4 +40,13 @@ class TimeManagerTest {
     void depthCapPassedThrough() {
         assertEquals(7, TimeManager.forClock(1000, 0, 0, 7).maxDepth());
     }
+
+    @Test
+    void emptySquaresPredictTheMovesLeft() {
+        long early = TimeManager.forClock(60_000, 0, 0, 0, 45, 1, 40, 30).hardMs();
+        long late = TimeManager.forClock(60_000, 0, 0, 0, 8, 1, 40, 30).hardMs();
+        assertTrue(late > early, "early=" + early + " late=" + late);
+        assertEquals(TimeManager.forClock(60_000, 0, 0, 0).hardMs(),
+                TimeManager.forClock(60_000, 0, 0, 0, 8, 0, 40, 30).hardMs());
+    }
 }

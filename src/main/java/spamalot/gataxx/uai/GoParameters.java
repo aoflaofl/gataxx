@@ -70,6 +70,11 @@ record GoParameters(
 
     /** Converts to search limits for the side to move in {@code pos}. */
     SearchLimits toLimits(Position pos) {
+        return toLimits(pos, 1, 40, 30);
+    }
+
+    /** As {@link #toLimits(Position)} with the clock model and soft/hard shares of the time manager. */
+    SearchLimits toLimits(Position pos, int timeModel, int softPercent, int hardTenths) {
         if (infinite) {
             return SearchLimits.infinite();
         }
@@ -82,7 +87,8 @@ record GoParameters(
             long left = xToMove ? btime : wtime;
             long inc = xToMove ? binc : winc;
             if (left >= 0) {
-                SearchLimits clock = TimeManager.forClock(left, inc, movesToGo, depth);
+                SearchLimits clock = TimeManager.forClock(left, inc, movesToGo, depth, Long.bitCount(pos.empty()), timeModel,
+                        softPercent, hardTenths);
                 soft = clock.softMs();
                 hard = clock.hardMs();
             }
