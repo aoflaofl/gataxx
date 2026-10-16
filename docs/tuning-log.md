@@ -1081,6 +1081,18 @@ clock late in the game, when only a handful of moves remain.
 Around the new default (3000 ms + 50 ms, seed 44, 1200 games, against `TimeModel 1`): `TimeHard 20` **-24.4**, `TimeHard 45`
 **+12.7**, `TimeSoft 55` **-12.2** (all +/- 19.7): the defaults 40 / 30 stay.
 
+## Release validation, 1.8.0 (2026-10-16)
+
+Build of the 1.8.0 version bump against the published 1.7.0 jar (sha256 6a145782...faec), one thread each, 8 games in parallel:
+
+- Game clock 3000 ms + 50 ms, 2000 games, seed 5555: **+1450 -550, +168.4 +/- 17.1**; 219 of the 2000 games ended on time. A
+  400-game rerun with the full log (seed 777): +302 -98, **+195.5 +/- 39.6**, 53 time forfeits, **all by 1.7.0** (none by
+  1.8.0): 1.7.0 rebuilt the evaluation tables for every `go`, so each move took 90-170 ms longer than the search limit.
+  Most of the rest is `TimeModel 1` (+50 to +73 by itself, measured with the table already cached).
+- Fixed 50 ms per move, 1200 games, seed 6666: **+3.5 +/- 19.7** (level, as expected: nothing changed in the search or evaluation).
+- `bin/Moonbird-native` (`d6a6107`), 100 ms per move, 800 games, seed 7: **+152 -648, -251.9 +/- 30.7** (earlier builds: -269
+  +/- 45 over 400 games, -267 +/- 26 against 1.0.0 for 1.7.0).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

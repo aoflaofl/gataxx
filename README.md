@@ -13,7 +13,7 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.7.0.jar
+java -jar gataxx-1.8.0.jar
 ```
 
 ## Strength
@@ -21,22 +21,29 @@ java -jar gataxx-1.7.0.jar
 Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
 thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
+- Version 1.8.0 beats 1.7.0 in 72.5% of games on a game clock (+168 Elo, 2000 games at 3 s + 50 ms per game; +196 over 400
+  games with the full log kept), and is level with it at a fixed 50 ms per move (+3.5 +/- 20, 1200 games). Two changes to
+  clock play: 1.7.0 rebuilt its evaluation tables for every search, so a `go` took 90-170 ms more than asked (13% of its games
+  in the 400-game run were lost on time, none of 1.8.0's), and the time manager now estimates its moves left from the empty
+  squares instead of assuming 30 (`TimeModel`, +50 to +73 Elo on its own, measured with the table already cached: +66 and
+  +50 at 3 s + 50 ms, +73 sudden death at 1.5 s). Fixed `movetime` play is unchanged.
 - Version 1.7.0 beats 1.6.0 in 84% of games (+290 Elo, 2000 games at 50 ms per move, one thread each). It comes from
   four changes found by studying a much stronger engine: a trained pair-pattern evaluation (`PairBlend`, about +150), a graded
   futility reduction (`FutilityReduction`, about +125), internal iterative reduction (`IirMinDepth`, about +65) and using the
   best move of an interrupted iteration (`PartialIterations`, about +15); the gains overlap, so they do not add up to +290.
   With `Threads` it is stronger still: against itself on one thread at equal time per move, 4 threads scored about +105 Elo
   and 8 threads about +139 (measured on the 1.5.0 search).
-- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.7.0 wins about 92% of
+- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx) (not re-measured for 1.8.0), version 1.7.0 wins about 92% of
   games (+418 Elo, 400 games, 100 ms per move); 1.6.0 scored +397, 1.5.0 +342 and 1.1.0 +165. This match is too lopsided to
   show small differences.
-- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.7.0 wins about 86% of games
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes) (not re-measured for 1.8.0), version 1.7.0 wins about 86% of games
   (+309 Elo over 1200 games, +298 over 400, 100 ms per move); 1.6.0 scored +29 (level), 1.5.0 -26 to -50, 1.3.0 -158 and
   1.1.0 -291.
 - Against the open-source Nim engine [Moonbird](https://github.com/tsoj/Moonbird) 1.0.0, version 1.7.0 loses about 82% of
   games (-267 Elo over 1200 games, -275 over 400, 100 ms per move); 1.6.0 scored -353. Moonbird is much stronger than the
   other opponents: it reaches depth 12-15 in 100 ms with about a tenth of the nodes per second, and gains against it are
-  smaller than self-play gains.
+  smaller than self-play gains. Version 1.8.0 scored -252 +/- 31 (800 games, 100 ms per move) against a newer Moonbird build
+  (`d6a6107`), which respects `movetime` and accepts move lists.
 - Version 1.6.0 beats 1.5.0 in 61% of games (+75.5 Elo, 2000 games at 50 ms per move): a dominated-jump cut in the main
   search (`JumpCut`) and two refits of the built-in pattern table.
 - Version 1.5.0 beats 1.4.0 in 67% of games (+124.5 Elo, 1600 games at 50 ms per move), almost all of it from cutting
