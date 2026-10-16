@@ -1098,6 +1098,17 @@ Build of the 1.8.0 version bump against the published 1.7.0 jar (sha256 6a145782
   **+343 -57, +311.8 +/- 48.7** (1.7.0: +298; one game was won on a Funes illegal move). As expected, no change at fixed
   move times.
 
+## Evaluation speed: rank-at-a-time sums, 2026-10-16
+
+Micro-benchmark of `evaluate` (20,000 positions from random games): feature 10 ns, feature + pattern table 105 ns, + pair
+table 245 ns. The pattern table walked 49 squares with two popcounts each; the pair table built 36 block indices and 80
+index pairs. Both now work a rank at a time in byte lanes of a `long` (`eval/Lanes`): the neighbour counts and square state
+of a whole rank (pattern table) or the digits of the 2x2 blocks of a rank pair (pair table) come out of a few additions, with
+no scratch arrays or thread-local lookups. The sums are integers and identical (`LaneSumsTest` compares them on every position
+of 300 random games; positions with walls keep the old path). Result: 51 ns and 135 ns per evaluation, depth 14 from the
+start position in the same 2,198,170 nodes but 519-534 ms instead of 726-732 ms (3.0M -> 4.2M nodes per second). Timed 50 ms
+against 1.8.0, 1200 games, seed 8888: **+34.9 +/- 19.8**.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
