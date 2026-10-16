@@ -1078,6 +1078,9 @@ Confirmation of `TimeModel 1`: fresh seed 22, 2000 games: **+50.4 +/- 15.4**; su
 **+73.5 +/- 20.1**. `TimeModel` 1 is now the default (fixed `movetime` play is unaffected). The old fixed estimate wasted the
 clock late in the game, when only a handful of moves remain.
 
+Around the new default (3000 ms + 50 ms, seed 44, 1200 games, against `TimeModel 1`): `TimeHard 20` **-24.4**, `TimeHard 45`
+**+12.7**, `TimeSoft 55` **-12.2** (all +/- 19.7): the defaults 40 / 30 stay.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
