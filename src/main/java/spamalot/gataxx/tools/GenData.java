@@ -60,8 +60,13 @@ public final class GenData {
     }
 
     static Evaluator defaultEvaluator() throws IOException {
+        return defaultEvaluator(128);
+    }
+
+    /** Feature and pattern evaluation as the engine builds it; {@code margin} is the pattern table's lazy margin. */
+    static Evaluator defaultEvaluator(int margin) throws IOException {
         Evaluator base = new FeatureEvaluator(new FeatureEvaluator.Weights(FeatureEvaluator.SCALE, 4, 0, 0, 4, 0, 8, 32, 0, 0, 0, -3, 0));
-        return PatternEvaluator.builtIn(base, 0.65).withMargin(32);
+        return PatternEvaluator.builtIn(base, 0.65).withMargin(margin);
     }
 
     public static void main(String[] args) throws Exception {
@@ -73,6 +78,7 @@ public final class GenData {
         int openingMax = 12;
         long seed = 1;
         int hash = 8;
+        int margin = 128;
         String pair = "builtin";
         double pairBlend = 0.9;
         boolean internal = false;
@@ -93,6 +99,7 @@ public final class GenData {
                 case "--outer-nodes" -> outerNodes = Integer.parseInt(args[++i]);
                 case "--select-prob" -> selectProb = Double.parseDouble(args[++i]);
                 case "--max-select" -> maxSelect = Integer.parseInt(args[++i]);
+                case "--margin" -> margin = Integer.parseInt(args[++i]);
                 case "--pair" -> pair = args[++i];
                 case "--pair-blend" -> pairBlend = Double.parseDouble(args[++i]);
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
@@ -102,13 +109,13 @@ public final class GenData {
             System.err.println("usage: GenData --out FILE [--games N] [--nodes N] [--threads N] [--opening-min N] [--opening-max N] [--seed N]");
             System.exit(2);
         }
-        Evaluator staticEvaluator = defaultEvaluator();
+        Evaluator staticEvaluator = defaultEvaluator(margin);
         Evaluator evaluator = staticEvaluator;
         if (pair.equals("builtin")) {
-            evaluator = spamalot.gataxx.eval.PairEvaluator.builtIn(staticEvaluator, pairBlend).withMargin(32);
+            evaluator = spamalot.gataxx.eval.PairEvaluator.builtIn(staticEvaluator, pairBlend).withMargin(margin);
         } else if (!pair.equals("none")) {
             try (java.io.InputStream in = Files.newInputStream(Path.of(pair))) {
-                evaluator = spamalot.gataxx.eval.PairEvaluator.load(in, staticEvaluator, pairBlend).withMargin(32);
+                evaluator = spamalot.gataxx.eval.PairEvaluator.load(in, staticEvaluator, pairBlend).withMargin(margin);
             }
         }
         final Evaluator searchEvaluator = evaluator;

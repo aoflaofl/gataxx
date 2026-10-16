@@ -1133,6 +1133,9 @@ evaluation is right at the nodes that decide a cutoff). Confirmation: against th
 -64.1 +/- 24.5** (1.8.0: -251.9): the gap to Moonbird shrinks by about 190 Elo. The other blends and reductions were tuned with
 the old margin; they are worth re-checking.
 
+Re-check under the new margins (50 ms, 1200 games, seed 1313, against the new defaults): `PairBlend` 100 **+0.6**, 80 **-11.0**;
+`PatternBlend` 80 **-14.5**, 50 **-46.6**; `FutilityReduction` 35 **-17.4**, 16 **+8.7** (all +/- 19.7). The defaults 90 / 65 / 24 stay.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
