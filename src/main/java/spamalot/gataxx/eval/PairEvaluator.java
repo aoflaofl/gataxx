@@ -116,16 +116,85 @@ public final class PairEvaluator implements Evaluator {
 
     private int correction(Position pos) {
         int side = pos.sideToMove();
+        long mine = pos.pieces(side);
+        long theirs = pos.pieces(1 - side);
+        long walls = pos.walls();
+        int sum = tempo + (walls == 0 ? patternSumLanes(mine, theirs) : patternSumBlocks(mine, theirs, walls));
+        sum += mobility[PairPatterns.mobilityIndex(mine, theirs, walls)]
+                - mobility[PairPatterns.mobilityIndex(theirs, mine, walls)];
+        return (int) Math.round(blend * sum / scale);
+    }
+
+    /** Sum of the 80 placement weights, found through the block indices of {@link PairPatterns} (the general case). */
+    int patternSumBlocks(long mine, long theirs, long walls) {
         int[] p = patterns.get();
-        PairPatterns.patterns(pos.pieces(side), pos.pieces(1 - side), pos.walls(), blocks.get(), p);
-        int sum = tempo;
+        PairPatterns.patterns(mine, theirs, walls, blocks.get(), p);
+        int sum = 0;
         for (int i = 0; i < PairPatterns.PLACEMENTS; i++) {
             sum += weights[i << 16 | p[i]];
         }
-        long mine = pos.pieces(side);
-        long theirs = pos.pieces(1 - side);
-        sum += mobility[PairPatterns.mobilityIndex(mine, theirs, pos.walls())]
-                - mobility[PairPatterns.mobilityIndex(theirs, mine, pos.walls())];
-        return (int) Math.round(blend * sum / scale);
+        return sum;
+    }
+
+    /**
+     * The same sum for a board without walls. The 2x2 block at file {@code x} of the rank pair {@code y, y+1} is byte
+     * {@code x} of {@code blocks(y)}: every square is a base-four digit (1 own, 2 enemy), and one rank's digits are added
+     * up in byte lanes with the next rank's, so that all six blocks of a rank pair come out of a few additions.
+     */
+    int patternSumLanes(long mine, long theirs) {
+        long d0 = Lanes.rank(mine, 0) + 2 * Lanes.rank(theirs, 0);
+        long d1 = Lanes.rank(mine, 1) + 2 * Lanes.rank(theirs, 1);
+        long d2 = Lanes.rank(mine, 2) + 2 * Lanes.rank(theirs, 2);
+        long d3 = Lanes.rank(mine, 3) + 2 * Lanes.rank(theirs, 3);
+        long d4 = Lanes.rank(mine, 4) + 2 * Lanes.rank(theirs, 4);
+        long d5 = Lanes.rank(mine, 5) + 2 * Lanes.rank(theirs, 5);
+        long d6 = Lanes.rank(mine, 6) + 2 * Lanes.rank(theirs, 6);
+        // Lane j of pairs(d) holds square j and 4 times square j+1 of the rank.
+        long a0 = d0 + (d0 >>> 8 << 2);
+        long a1 = d1 + (d1 >>> 8 << 2);
+        long a2 = d2 + (d2 >>> 8 << 2);
+        long a3 = d3 + (d3 >>> 8 << 2);
+        long a4 = d4 + (d4 >>> 8 << 2);
+        long a5 = d5 + (d5 >>> 8 << 2);
+        long a6 = d6 + (d6 >>> 8 << 2);
+        long b0 = a0 + (a1 << 4);
+        long b1 = a1 + (a2 << 4);
+        long b2 = a2 + (a3 << 4);
+        long b3 = a3 + (a4 << 4);
+        long b4 = a4 + (a5 << 4);
+        long b5 = a5 + (a6 << 4);
+        return horizontal(b0, 0) + horizontal(b1, 4) + horizontal(b2, 8) + horizontal(b3, 12) + horizontal(b4, 16)
+                + horizontal(b5, 20)
+                + vertical(b0, b2, 24) + vertical(b1, b3, 30) + vertical(b2, b4, 36) + vertical(b3, b5, 42)
+                + diagonal(b0, b2, 48) + diagonal(b1, b3, 52) + diagonal(b2, b4, 56) + diagonal(b3, b5, 60)
+                + diagonal(b2, b0, 64) + diagonal(b3, b1, 68) + diagonal(b4, b2, 72) + diagonal(b5, b3, 76);
+    }
+
+    /** Placements of two blocks two files apart on one rank pair: the first placement is {@code first}. */
+    private int horizontal(long b, int first) {
+        int sum = 0;
+        for (int x = 0; x < 4; x++) {
+            sum += weights[(first + x) << 16 | (int) (b >>> (8 * x) & 0xFF) | (int) (b >>> (8 * x + 8) & 0xFF00)];
+        }
+        return sum;
+    }
+
+    /** Placements of a block above a block two ranks down. */
+    private int vertical(long above, long below, int first) {
+        int sum = 0;
+        for (int x = 0; x < 6; x++) {
+            sum += weights[(first + x) << 16 | (int) (above >>> (8 * x) & 0xFF) | (int) (below >>> (8 * x) << 8 & 0xFF00)];
+        }
+        return sum;
+    }
+
+    /** Placements of blocks touching at a corner: the first block is byte {@code x} of {@code first}, the second byte {@code x + 2} of {@code second}. */
+    private int diagonal(long first, long second, int firstPlacement) {
+        int sum = 0;
+        for (int x = 0; x < 4; x++) {
+            sum += weights[(firstPlacement + x) << 16 | (int) (first >>> (8 * x) & 0xFF)
+                    | (int) (second >>> (8 * x + 8) & 0xFF00)];
+        }
+        return sum;
     }
 }

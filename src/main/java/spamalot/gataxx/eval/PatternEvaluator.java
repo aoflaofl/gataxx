@@ -25,6 +25,8 @@ public final class PatternEvaluator implements Evaluator {
 
     /** Weights in 1/{@link #SCALE} units, laid out as {@code state * 810 + squareClass * 81 + mine * 9 + theirs}. */
     private final int[] flat = new int[3 * STATE_STRIDE];
+    /** The same weights indexed {@code square * 243 + state * 81 + mine * 9 + theirs}, for {@link #sumLanes}. */
+    private final int[] bySquare = new int[Bitboards.SQUARES * 3 * CELL];
     private final double blend;
     private int margin;
     private final double perUnit;
@@ -50,6 +52,13 @@ public final class PatternEvaluator implements Evaluator {
                             flat[state * STATE_STRIDE + cls * CELL + m * 9 + t] = (int) Math.round(weights[j] * SCALE);
                         }
                     }
+                }
+            }
+        }
+        for (int sq = 0; sq < Bitboards.SQUARES; sq++) {
+            for (int state = 0; state < 3; state++) {
+                for (int c = 0; c < CELL; c++) {
+                    bySquare[sq * 3 * CELL + state * CELL + c] = flat[state * STATE_STRIDE + CLASS_OFFSET[sq] + c];
                 }
             }
         }
@@ -135,10 +144,53 @@ public final class PatternEvaluator implements Evaluator {
         }
         long mine = pos.pieces(pos.sideToMove());
         long theirs = pos.pieces(1 - pos.sideToMove());
-        long empty = pos.empty();
-        int sum = sumOver(empty, mine, theirs, 0) + sumOver(mine, mine, theirs, STATE_STRIDE)
-                + sumOver(theirs, mine, theirs, 2 * STATE_STRIDE);
+        int sum = pos.walls() == 0 ? sumLanes(mine, theirs)
+                : sumSquares(pos.empty(), mine, theirs);
         return (int) Math.round((1 - blend) * b + perUnit * sum + offset);
+    }
+
+    /** The table sum by walking the squares one at a time (the general case, with walls). */
+    int sumSquares(long empty, long mine, long theirs) {
+        return sumOver(empty, mine, theirs, 0) + sumOver(mine, mine, theirs, STATE_STRIDE)
+                + sumOver(theirs, mine, theirs, 2 * STATE_STRIDE);
+    }
+
+    /**
+     * The same sum for a board without walls, a rank at a time: the neighbour counts of all seven squares of a rank are
+     * added up in byte lanes, together with the square's state, into the table index of each lane.
+     */
+    int sumLanes(long mine, long theirs) {
+        long m0 = Lanes.rank(mine, 0);
+        long m1 = Lanes.rank(mine, 1);
+        long m2 = Lanes.rank(mine, 2);
+        long m3 = Lanes.rank(mine, 3);
+        long m4 = Lanes.rank(mine, 4);
+        long m5 = Lanes.rank(mine, 5);
+        long m6 = Lanes.rank(mine, 6);
+        long t0 = Lanes.rank(theirs, 0);
+        long t1 = Lanes.rank(theirs, 1);
+        long t2 = Lanes.rank(theirs, 2);
+        long t3 = Lanes.rank(theirs, 3);
+        long t4 = Lanes.rank(theirs, 4);
+        long t5 = Lanes.rank(theirs, 5);
+        long t6 = Lanes.rank(theirs, 6);
+        return rankSum(0, 0, m0, m1, 0, t0, t1) + rankSum(1, m0, m1, m2, t0, t1, t2) + rankSum(2, m1, m2, m3, t1, t2, t3)
+                + rankSum(3, m2, m3, m4, t2, t3, t4) + rankSum(4, m3, m4, m5, t3, t4, t5)
+                + rankSum(5, m4, m5, m6, t4, t5, t6) + rankSum(6, m5, m6, 0, t5, t6, 0);
+    }
+
+    private int rankSum(int rank, long mAbove, long mHere, long mBelow, long tAbove, long tHere, long tBelow) {
+        long vm = mAbove + mHere + mBelow;
+        long nm = (vm << 8) + vm + (vm >>> 8) - mHere;
+        long vt = tAbove + tHere + tBelow;
+        long nt = (vt << 8) + vt + (vt >>> 8) - tHere;
+        long index = mHere * CELL + tHere * (2 * CELL) + nm * 9 + nt;
+        int at = rank * 7 * 3 * CELL;
+        int sum = 0;
+        for (int j = 0; j < 7; j++) {
+            sum += bySquare[at + j * 3 * CELL + (int) (index >>> (8 * j) & 0xFF)];
+        }
+        return sum;
     }
 
     /** Sum of the weights of the squares in {@code squares}, all of which are in the state whose weights start at {@code base}. */
