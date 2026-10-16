@@ -102,7 +102,8 @@ public final class UaiEngine {
     private int jumpCutNearDepth;
     private String patternFile = "";
     private int patternBlend = 65;
-    private int patternMargin = 32;
+    private int patternMargin = 128;
+    private int pairMargin = 128;
     private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private int timeModel = 1;
@@ -173,7 +174,7 @@ public final class UaiEngine {
                     send("option name FutilityDepth type spin default 2 min 1 max 6");
                     send("option name PatternFile type string default <empty>");
                     send("option name PatternBlend type spin default 65 min 0 max 100");
-                    send("option name PatternMargin type spin default 32 min 0 max 2000");
+                    send("option name PatternMargin type spin default 128 min 0 max 2000");
                     send("option name Threads type spin default 1 min 1 max 64");
                     send("option name PairFile type string default <empty>");
                     send("option name PairBlend type spin default 90 min 0 max 300");
@@ -214,6 +215,7 @@ public final class UaiEngine {
                     send("option name TimeModel type spin default 1 min 0 max 1");
                     send("option name TimeSoft type spin default 40 min 5 max 200");
                     send("option name TimeHard type spin default 30 min 10 max 100");
+                    send("option name PairMargin type spin default 128 min 0 max 2000");
                     send("uaiok");
                 }
                 case "isready" -> {
@@ -390,6 +392,8 @@ public final class UaiEngine {
             jumpCutNearDepth = spinValue(name, value, 0, 60);
         } else if (name.equalsIgnoreCase("JumpCutMinEmpties")) {
             jumpCutMinEmpties = spinValue(name, value, 0, 49);
+        } else if (name.equalsIgnoreCase("PairMargin")) {
+            pairMargin = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("TimeModel")) {
             timeModel = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("TimeSoft")) {
@@ -499,7 +503,7 @@ public final class UaiEngine {
                 String.valueOf(evalReach), String.valueOf(evalTerritory), String.valueOf(evalEdge), String.valueOf(tempo),
                 String.valueOf(evalFade), String.valueOf(evalCorner), String.valueOf(evalRing1),
                 String.valueOf(evalCohesion), String.valueOf(evalThreat), patternFile, String.valueOf(patternBlend),
-                String.valueOf(patternMargin), pairFile, String.valueOf(pairBlend));
+                String.valueOf(patternMargin), pairFile, String.valueOf(pairBlend), String.valueOf(pairMargin));
         if (cachedEvaluator == null || !key.equals(cachedEvaluatorKey)) {
             cachedEvaluator = buildEvaluator();
             cachedEvaluatorKey = key;
@@ -528,7 +532,7 @@ public final class UaiEngine {
                         pe = spamalot.gataxx.eval.PairEvaluator.load(in, evaluator, pairBlend / 100.0);
                     }
                 }
-                evaluator = pe.withMargin(patternMargin);
+                evaluator = pe.withMargin(pairMargin);
             } catch (java.io.IOException | RuntimeException e) {
                 throw new IllegalArgumentException("cannot load pair table '" + (pairFile.isEmpty() ? "built-in" : pairFile)
                         + "': " + e.getMessage(), e);

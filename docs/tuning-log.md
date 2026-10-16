@@ -1109,6 +1109,30 @@ of 300 random games; positions with walls keep the old path). Result: 51 ns and 
 start position in the same 2,198,170 nodes but 519-534 ms instead of 726-732 ms (3.0M -> 4.2M nodes per second). Timed 50 ms
 against 1.8.0, 1200 games, seed 8888: **+34.9 +/- 19.8**.
 
+## Lazy-evaluation margins were costing 200+ Elo, 2026-10-16
+
+`PatternMargin` (and the pair table, which shared it) skip the learned tables when the plain score is `margin` outside the
+search window. The value 32 (two pieces) was tuned before the pair table existed. New option `PairMargin` separates the two.
+Timed 50 ms against the defaults (both margins 32, after the speed-up above), 1200 games, seed 9393:
+
+| PatternMargin / PairMargin | Elo |
+|---|---|
+| 32 / 16 | -63.5 +/- 20.0 |
+| 32 / 8 | -125.0 +/- 20.9 |
+| 16 / 16 | -177.2 +/- 22.3 |
+| 32 / 64 | **+145.8** +/- 21.4 |
+| 32 / 128 | +133.6 +/- 21.1 |
+| 64 / 64 | +219.9 +/- 23.7 |
+| 128 / 128 | **+262.4** +/- 25.5 |
+| 256 / 256 | +252.8 +/- 25.1 |
+| 0 / 0 (never skip) | +248.2 +/- 24.9 |
+
+Both margins 128 are now the defaults (the plateau starts around 128; nodes per second fall from 4.2M to 3.0M at depth 14, but the
+evaluation is right at the nodes that decide a cutoff). Confirmation: against the published 1.8.0 at 50 ms, fresh seed 2424,
+2000 games: **+1657 -343, +273.6 +/- 20.2**. Against Moonbird-native (`d6a6107`) at 100 ms, 800 games, seed 7: **+327 -473,
+-64.1 +/- 24.5** (1.8.0: -251.9): the gap to Moonbird shrinks by about 190 Elo. The other blends and reductions were tuned with
+the old margin; they are worth re-checking.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
