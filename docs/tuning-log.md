@@ -1136,6 +1136,26 @@ the old margin; they are worth re-checking.
 Re-check under the new margins (50 ms, 1200 games, seed 1313, against the new defaults): `PairBlend` 100 **+0.6**, 80 **-11.0**;
 `PatternBlend` 80 **-14.5**, 50 **-46.6**; `FutilityReduction` 35 **-17.4**, 16 **+8.7** (all +/- 19.7). The defaults 90 / 65 / 24 stay.
 
+## Retraining the pair table on games searched with the corrected margins, 2026-10-16
+
+`GenData` now takes `--margin` (default 128, it used 32 before) and sets the pattern layer's margin as the engine does. Each round:
+200,000 games at 8000 nodes per move (15.4-15.5M positions, 16-17 min), `PairFit --no-mobility --epochs 6 --lr 0.5 --lambda 0.5`
+(3 s per epoch), then timed 50 ms against the table currently embedded.
+
+| round | search evaluator for the data | validation loss (static) | 50 ms vs the embedded table |
+|---|---|---|---|
+| 1 | table of 1.8.0, margin 128 | 0.5848 (0.6207) | **+65.0 +/- 20.0** (1200, seed 3131); fresh seed 4242, 2000 games: **+76.2 +/- 15.6** |
+| 2 | round-1 table | 0.5793 (0.6177) | **+39.0 +/- 19.8** (1200, seed 5353); fresh seed 6464, 2000 games: **+20.2 +/- 15.3** |
+| 3 | round-2 table | | -4.6 +/- 19.7 (1200, seed 7575): converged |
+| pooled 1+2+3 (46M positions) | | 0.5804 (0.6189) | **+22.0 +/- 19.7** (1200, seed 8686); fresh seed 9797, 2000 games: **+29.3 +/- 15.3** |
+
+Embedded: round 1, then round 2, then the pooled table (current). The earlier test with unchanged margins and the same recipe
+(15M positions at 8000 nodes, 1.8.0's search) had only reproduced the old table (+3.5): the training positions were being played
+by an engine that skipped its tables too often.
+
+Against `bin/Moonbird-native` (`d6a6107`) at 100 ms, one thread each, Hash 128, seed 7, 800 games, with the round-2 table:
+**+438 =1 -361, +33.5 +/- 24.2**. History of this match-up: -252 (1.8.0), -64 (margins 128, round-0 table), +33.5.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
