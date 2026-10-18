@@ -1217,6 +1217,15 @@ changes with the evaluation, so nodes per second alone do not say how fast a dep
 default (all 80), 1200 games, seed 9101: `hv` **-57.3 +/- 19.9**, `hvd` **-20.9 +/- 19.7**, `hva` **-30.2 +/- 19.7**. Each
 placement is worth more in strength than the lookup it costs, so all 80 stay.
 
+## Release validation, 1.10.0 (2026-10-17)
+
+The 1.10.0 build (pattern table off, pair table fitted on three rounds, lane-based sums, margins 128) against the published 1.9.0 jar
+(sha256 2f48c7d7...3672), one thread each: fixed 50 ms, 2000 games, seed 5555: **+1336 -664, +121.5 +/- 16.2**; game clock 3000 ms + 50 ms,
+1200 games, seed 6666: **+823 -377, +135.6 +/- 21.2** (no forfeits of any kind). Outside engines, 100 ms per move, Hash 128, the same
+TikTaxx (`95dffff`) and Funes (`dd319f1`) builds as for 1.9.0: TikTaxx 400 games, seed 5150: **+367 -33, +418.5 +/- 61.9**; Funes 1200 games,
+seed 7: **+1087 -113, +393.3 +/- 33.7**; Funes 400 games, seed 5150: **+366 -34, +412.8 +/- 61.0**. `bin/Moonbird-native` (`d6a6107`), 1200
+games, seed 7: **+856 -344, +158.4 +/- 21.7** (1.9.0: +60.2).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

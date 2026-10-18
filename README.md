@@ -13,7 +13,7 @@ Prebuilt jars are attached to each [GitHub release](https://github.com/aoflaofl/
 Java 21 (or newer) runtime:
 
 ```
-java -jar gataxx-1.9.0.jar
+java -jar gataxx-1.10.0.jar
 ```
 
 ## Strength
@@ -21,6 +21,13 @@ java -jar gataxx-1.9.0.jar
 Measured with the bundled match harness (see [docs/tuning-log.md](docs/tuning-log.md) for every experiment): one
 thread each, default settings, random 6-ply openings, 100 ms per move unless stated.
 
+- Version 1.10.0 beats 1.9.0 in 67% of games at a fixed 50 ms per move (+122 Elo, 2000 games) and in 69% on a game clock
+  (+136 Elo, 1200 games at 3 s + 50 ms per game, no time forfeits). One change: the 49-square pattern table is gone
+  (`PatternBlend 0`) and the pair table, retrained on three rounds of the engine's own games (46M positions, the hand-made
+  features alone as the base it corrects), does its work. An evaluation costs about 28% less, so the search runs 4.2-4.5M nodes per
+  second instead of 3.6-3.7M, and the better evaluation reaches depth 12 in about 35% less time. Dropping pair placements for
+  more speed lost strength at equal time (see `PairPlacements`), and layout changes that keep the values identical (smaller
+  tables, other index arithmetic) did not speed up the search: its cost is the number of table lookups.
 - Version 1.9.0 beats 1.8.0 in 87% of games on a game clock (+333 Elo, 2000 games at 3 s + 50 ms per game, no time forfeits)
   and in 86% at a fixed 50 ms per move (+315 Elo, 2000 games). Three changes, in order of size: the lazy-evaluation margins
   (`PatternMargin`, new `PairMargin`) are 128 instead of 32 (+274 Elo; with the pair table in, the small margin skipped
@@ -39,16 +46,16 @@ thread each, default settings, random 6-ply openings, 100 ms per move unless sta
   best move of an interrupted iteration (`PartialIterations`, about +15); the gains overlap, so they do not add up to +290.
   With `Threads` it is stronger still: against itself on one thread at equal time per move, 4 threads scored about +105 Elo
   and 8 threads about +139 (measured on the 1.5.0 search).
-- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.9.0 wins about 92% of games
-  (+418 Elo, 400 games, 100 ms per move); 1.8.0 and 1.7.0 scored +413 and +418, 1.6.0 +397, 1.5.0 +342 and 1.1.0 +165. This
-  match is too lopsided to show small differences.
-- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.9.0 wins about 90% of games
-  (+390 Elo over 1200 games, +413 over 400, 100 ms per move); 1.8.0 scored +311 and +312, 1.7.0 +309, 1.6.0 +29 (level),
-  1.5.0 -26 to -50, 1.3.0 -158 and 1.1.0 -291.
-- Against the open-source Nim engine [Moonbird](https://github.com/tsoj/Moonbird), version 1.9.0 wins about 59% of games
-  (+60 Elo over 1200 games, 100 ms per move, one thread each) against a recent build (`d6a6107`, which respects `movetime` and
-  accepts move lists). Moonbird was by far the strongest opponent before: 1.8.0 scored -252, 1.7.0 -267 against the 1.0.0
-  release and 1.6.0 -353. Moonbird reaches depth 12-17 in 100 ms with fewer, heavier nodes.
+- Against the open-source C++ engine [TikTaxx](https://github.com/kz04px/tiktaxx), version 1.10.0 wins about 92% of games
+  (+418 Elo, 400 games, 100 ms per move); 1.9.0, 1.8.0 and 1.7.0 scored +418, +413 and +418, 1.6.0 +397, 1.5.0 +342 and 1.1.0
+  +165. This match is too lopsided to show small differences.
+- Against the open-source C++ engine [Funes](https://github.com/Tempate/Funes), version 1.10.0 wins about 91% of games
+  (+393 Elo over 1200 games, +413 over 400, 100 ms per move); 1.9.0 scored +390 and +413, 1.8.0 +311 and +312, 1.7.0 +309,
+  1.6.0 +29 (level), 1.5.0 -26 to -50, 1.3.0 -158 and 1.1.0 -291.
+- Against the open-source Nim engine [Moonbird](https://github.com/tsoj/Moonbird), version 1.10.0 wins about 71% of games
+  (+158 Elo over 1200 games, 100 ms per move, one thread each) against a recent build (`d6a6107`, which respects `movetime` and
+  accepts move lists). Moonbird was by far the strongest opponent before: 1.9.0 scored +60, 1.8.0 -252, 1.7.0 -267 against the
+  1.0.0 release and 1.6.0 -353. Moonbird reaches depth 12-17 in 100 ms with fewer, heavier nodes.
 - Version 1.6.0 beats 1.5.0 in 61% of games (+75.5 Elo, 2000 games at 50 ms per move): a dominated-jump cut in the main
   search (`JumpCut`) and two refits of the built-in pattern table.
 - Version 1.5.0 beats 1.4.0 in 67% of games (+124.5 Elo, 1600 games at 50 ms per move), almost all of it from cutting
