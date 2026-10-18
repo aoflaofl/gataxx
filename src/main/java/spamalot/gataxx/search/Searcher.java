@@ -26,12 +26,19 @@ public final class Searcher {
     private static final int MAX_PLY = MAX_DEPTH + MAX_QUIESCENCE_PLY + 4;
     private static final int INF = 30_000;
     private static final int NODE_CHECK_MASK = 1023;
+    /** Default of {@link #setDeferMinDepth}. */
+    public static final int DEFAULT_DEFER_MIN_DEPTH = 4;
 
     private final Evaluator evaluator;
     private final TranspositionTable tt;
     private final TranspositionTable.Entry ttEntry = new TranspositionTable.Entry();
     private final int[][] moveBuf = new int[MAX_PLY][Position.MAX_MOVES];
     private final int[][] scoreBuf = new int[MAX_PLY][Position.MAX_MOVES];
+    /** Moves put off because another thread is searching them, and their original positions in the move order, per ply. */
+    private int[][] deferredMoveBuf;
+    private int[][] deferredIndexBuf;
+    private InProgress inProgress;
+    private int deferMinDepth = DEFAULT_DEFER_MIN_DEPTH;
     private final int[][] pv = new int[MAX_PLY][MAX_PLY];
     private final int[] pvLen = new int[MAX_PLY];
 
@@ -419,6 +426,23 @@ public final class Searcher {
         this.helperId = id;
     }
 
+    /**
+     * In a parallel search, a move whose position another thread is already searching is put off until the other moves have been
+     * tried, at nodes with at least this much depth left ({@code 0} turns this off). It has no effect in a single-threaded search.
+     */
+    public void setDeferMinDepth(int depth) {
+        this.deferMinDepth = depth;
+    }
+
+    /** Shares the table of positions being searched with the other threads of a parallel search. */
+    void shareInProgress(InProgress shared) {
+        this.inProgress = shared;
+        if (shared != null && deferredMoveBuf == null) {
+            deferredMoveBuf = new int[MAX_PLY][Position.MAX_MOVES];
+            deferredIndexBuf = new int[MAX_PLY][Position.MAX_MOVES];
+        }
+    }
+
     // Skip pattern of the iterative-deepening helpers (the scheme popularised by Stockfish's Lazy SMP).
     private static final int[] SKIP_SIZE = {1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
     private static final int[] SKIP_PHASE = {0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7};
@@ -633,11 +657,23 @@ public final class Searcher {
         int staticScore = futile ? evaluator.evaluate(pos) : 0;
         int originalAlpha = alphaAtEntry;
         int bestMove = Move.NONE;
-        for (int i = 0; i < n; i++) {
-            // Lazy selection sort: only pays for ordering as far as we get before a cutoff.
-            swap(moves, scores, i, bestIndex(scores, i, n));
-
-            int move = moves[i];
+        boolean canDefer = inProgress != null && deferMinDepth > 0 && depth >= deferMinDepth && n > 1;
+        int[] deferredMoves = canDefer ? deferredMoveBuf[ply] : null;
+        int[] deferredIndex = canDefer ? deferredIndexBuf[ply] : null;
+        int deferred = 0;
+        for (int step = 0; step < n + deferred; step++) {
+            int i;
+            int move;
+            boolean fromDeferred = step >= n;
+            if (!fromDeferred) {
+                // Lazy selection sort: only pays for ordering as far as we get before a cutoff.
+                swap(moves, scores, step, bestIndex(scores, step, n));
+                i = step;
+                move = moves[step];
+            } else {
+                i = deferredIndex[step - n];
+                move = deferredMoves[step - n];
+            }
             if (futile && i > 0 && move != Move.PASS) {
                 int gain = (pos.captureCount(move) * 2 + (Move.isClone(move) ? 1 : 0)) * futilityUnitsPerPiece;
                 if (staticScore + gain + futilityMargin * depth <= alpha) {
@@ -645,6 +681,18 @@ public final class Searcher {
                 }
             }
             Position child = pos.makeMove(move);
+            long childHash = 0;
+            if (canDefer && move != Move.PASS) {
+                childHash = child.hash();
+                if (!fromDeferred && i > 0 && inProgress.contains(childHash)) {
+                    // Another thread is searching this move right now: try the others first.
+                    deferredMoves[deferred] = move;
+                    deferredIndex[deferred] = i;
+                    deferred++;
+                    continue;
+                }
+                inProgress.enter(childHash);
+            }
             int score;
             if (usePvs && i > 0) {
                 boolean reduce;
@@ -677,6 +725,9 @@ public final class Searcher {
                         int extra = (alpha - ours) / futilityReductionDiv;
                         if (extra > 0) {
                             if (futilityKeepZero ? depth - reduction - extra <= 0 : depth - 1 - reduction - extra <= 0) {
+                                if (childHash != 0) {
+                                    inProgress.leave(childHash);
+                                }
                                 continue;
                             }
                             reduction += extra;
@@ -694,6 +745,9 @@ public final class Searcher {
                 }
             } else {
                 score = -negamax(child, depth - 1, -beta, -alpha, ply + 1, onPv && move == hint, true);
+            }
+            if (childHash != 0) {
+                inProgress.leave(childHash);
             }
             if (aborted) {
                 return 0;

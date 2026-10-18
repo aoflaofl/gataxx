@@ -20,8 +20,11 @@ public final class ParallelSearch {
     public ParallelSearch(Searcher main, List<Searcher> helpers) {
         this.main = main;
         this.helpers = List.copyOf(helpers);
+        InProgress shared = this.helpers.isEmpty() ? null : new InProgress();
+        main.shareInProgress(shared);
         for (int i = 0; i < this.helpers.size(); i++) {
             this.helpers.get(i).asHelper(i + 1);
+            this.helpers.get(i).shareInProgress(shared);
         }
     }
 

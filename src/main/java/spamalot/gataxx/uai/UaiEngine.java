@@ -105,6 +105,7 @@ public final class UaiEngine {
     private int patternMargin = 128;
     private int pairMargin = 128;
     private String pairPlacements = "hvda";
+    private int deferMinDepth = Searcher.DEFAULT_DEFER_MIN_DEPTH;
     private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
     private int timeModel = 1;
@@ -218,6 +219,7 @@ public final class UaiEngine {
                     send("option name TimeHard type spin default 30 min 10 max 100");
                     send("option name PairMargin type spin default 128 min 0 max 2000");
                     send("option name PairPlacements type string default hvda");
+                    send("option name DeferMinDepth type spin default " + Searcher.DEFAULT_DEFER_MIN_DEPTH + " min 0 max 30");
                     send("uaiok");
                 }
                 case "isready" -> {
@@ -396,6 +398,8 @@ public final class UaiEngine {
             jumpCutMinEmpties = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("PairMargin")) {
             pairMargin = spinValue(name, value, 0, 2000);
+        } else if (name.equalsIgnoreCase("DeferMinDepth")) {
+            deferMinDepth = spinValue(name, value, 0, 30);
         } else if (name.equalsIgnoreCase("PairPlacements")) {
             try {
                 spamalot.gataxx.eval.PairPatterns.activeMask(value.trim());
@@ -572,6 +576,7 @@ public final class UaiEngine {
         s.setHistory(historyWeight, historyPenaltyDiv);
         s.setOrderEdgeBonus(orderEdgeBonus == 1);
         s.setPartialIterations(partialIterations == 1);
+        s.setDeferMinDepth(deferMinDepth);
         s.setPvs(pvs == 1);
         s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
         s.setLmr(lmr == 1, lmrMoves, lmrMinDepth);

@@ -99,8 +99,9 @@ class UaiEngineTest {
         assertEquals("option name TimeHard type spin default 30 min 10 max 100", out.get(60));
         assertEquals("option name PairMargin type spin default 128 min 0 max 2000", out.get(61));
         assertEquals("option name PairPlacements type string default hvda", out.get(62));
-        assertEquals("uaiok", out.get(63));
-        assertEquals(64, out.size());
+        assertEquals("option name DeferMinDepth type spin default 4 min 0 max 30", out.get(63));
+        assertEquals("uaiok", out.get(64));
+        assertEquals(65, out.size());
     }
 
     private static int lastHashfull(List<String> out) {
