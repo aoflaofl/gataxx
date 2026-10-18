@@ -1208,6 +1208,15 @@ round 1 + 2 fit. `bench 12`: 7,344,203 nodes in 1.69 s, **4.35M nodes/s**, check
 checksum 407): the nodes per second are 3% lower than the two-round table's, but the better evaluation needs 12% fewer nodes
 to depth 12, so depth 12 is reached 9% sooner. The three rounds gave +87, +26 and +16 Elo: diminishing returns.
 
+**Dropping placements (negative).** The 80 placements are 24 horizontal (`h`, 4x2), 24 vertical (`v`, 2x4) and two kinds of
+diagonal (`d`, `a`, 16 each). `PairFit --placements TYPES` fits a table that uses only some kinds and the engine option
+`PairPlacements` (default `hvda`, all 80) sums only those. Fitted on the pooled three rounds (validation loss 0.5725 with all 80):
+`hv` (48 placements) 0.5762, `hvd` 0.5747, `hva` 0.5747. `bench 12` against all 80 in the same session (4.52M nodes/s, 6.45M
+nodes, 1.42 s): `hv` 5.43M nodes/s, 6.88M nodes, 1.27 s; `hvd` 5.17M, 8.28M, 1.60 s; `hva` 5.23M, 7.50M, 1.43 s (the tree
+changes with the evaluation, so nodes per second alone do not say how fast a depth is reached). Self-play at 50 ms against the
+default (all 80), 1200 games, seed 9101: `hv` **-57.3 +/- 19.9**, `hvd` **-20.9 +/- 19.7**, `hva` **-30.2 +/- 19.7**. Each
+placement is worth more in strength than the lookup it costs, so all 80 stay.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

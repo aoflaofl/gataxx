@@ -141,6 +141,35 @@ public final class PairPatterns {
         return phase * 50 + targets;
     }
 
+    /**
+     * The kind of a placement: {@code h} two blocks side by side (a 4x2 rectangle, placements 0-23), {@code v} one above the
+     * other (2x4, 24-47), {@code d} touching at a corner going down to the right (48-63) and {@code a} the other diagonal (64-79).
+     */
+    public static char type(int placement) {
+        return placement < 24 ? 'h' : placement < 48 ? 'v' : placement < 64 ? 'd' : 'a';
+    }
+
+    /**
+     * The placements of the given kinds (letters {@code h}, {@code v}, {@code d}, {@code a}, in any order).
+     *
+     * @throws IllegalArgumentException for an unknown letter or no letter at all
+     */
+    public static boolean[] activeMask(String types) {
+        boolean[] mask = new boolean[PLACEMENTS];
+        for (char c : types.toCharArray()) {
+            if ("hvda".indexOf(c) < 0) {
+                throw new IllegalArgumentException("placement types are the letters h, v, d and a: " + types);
+            }
+        }
+        for (int p = 0; p < PLACEMENTS; p++) {
+            mask[p] = types.indexOf(type(p)) >= 0;
+        }
+        if (types.isEmpty()) {
+            throw new IllegalArgumentException("at least one placement type is needed");
+        }
+        return mask;
+    }
+
     /** The key {@code placement << 16 | pattern} of every symmetric image of a pattern (possibly with repeats). */
     public static int[] imageKeys(int placement, int pattern) {
         int[] states = decode(pattern);

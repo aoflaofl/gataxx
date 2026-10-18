@@ -51,6 +51,9 @@ public final class PairFit {
         result = new byte[n];
     }
 
+    /** The placements that take part in the fit (all by default; see {@code --placements}). */
+    private static boolean[] active = PairPatterns.activeMask("hvda");
+
     private static PairFit load(List<Path> files) throws IOException {
         long total = 0;
         for (Path f : files) {
@@ -100,7 +103,9 @@ public final class PairFit {
                 if (useWeights) {
                     PairPatterns.patterns(mine[i], theirs[i], walls[i], blocks, pat);
                     for (int p = 0; p < PairPatterns.PLACEMENTS; p++) {
-                        e += w[tie[p << 16 | pat[p]]];
+                        if (active[p]) {
+                            e += w[tie[p << 16 | pat[p]]];
+                        }
                     }
                     e += w[tempoId(w)];
                     e += w[mobilityBase(w) + PairPatterns.mobilityIndex(mine[i], theirs[i], walls[i])]
@@ -145,6 +150,7 @@ public final class PairFit {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--no-mobility" -> noMobility = true;
+                case "--placements" -> active = PairPatterns.activeMask(args[++i]);
                 case "--data" -> {
                     for (String f : args[++i].split(",")) {
                         files.add(Path.of(f));
@@ -162,7 +168,7 @@ public final class PairFit {
         }
         if (files.isEmpty() || out == null) {
             System.err.println("usage: PairFit --data FILE[,FILE...] --out FILE [--epochs N] [--lr X] [--lambda X] [--threads N]"
-                    + " [--scale S] [--valid-mod N]");
+                    + " [--scale S] [--valid-mod N] [--no-mobility] [--placements hvda]");
             System.exit(2);
         }
         long t0 = System.nanoTime();
@@ -247,8 +253,10 @@ public final class PairFit {
                     PairPatterns.patterns(d.mine[i], d.theirs[i], d.walls[i], blocks, pat);
                     double e = d.stat[i];
                     for (int p = 0; p < PairPatterns.PLACEMENTS; p++) {
-                        ids[p] = tie[p << 16 | pat[p]];
-                        e += w[ids[p]];
+                        ids[p] = active[p] ? tie[p << 16 | pat[p]] : -1;
+                        if (active[p]) {
+                            e += w[ids[p]];
+                        }
                     }
                     ids[PairPatterns.PLACEMENTS] = tempoId(w);
                     ids[PairPatterns.PLACEMENTS + 1] = mobilityBase(w)
@@ -261,6 +269,9 @@ public final class PairFit {
                     for (int j = 0; j < ids.length; j++) {
                         if (!mobilityOn && j > PairPatterns.PLACEMENTS) {
                             break;
+                        }
+                        if (ids[j] < 0) {
+                            continue; // a placement that is not part of this fit
                         }
                         float g = (float) err * sign[j];
                         int id = ids[j];
