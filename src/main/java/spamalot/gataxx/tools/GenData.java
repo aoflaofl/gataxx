@@ -28,13 +28,17 @@ import spamalot.gataxx.search.TranspositionTable;
  *
  * <pre>
  * java -cp gataxx.jar spamalot.gataxx.tools.GenData --out data.bin [--games 10000] [--nodes 20000] [--threads 8]
- *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair builtin|none|FILE] [--pair-blend 0.7]
+ *     [--opening-min 6] [--opening-max 12] [--seed 1] [--pair builtin|none|FILE] [--pair-blend 0.7] [--margin 128]
+ *     [--record pattern|features] [--pattern on|off]
  * </pre>
  *
  * With {@code --internal} the positions are sampled from inside the search instead: each outer game is searched with an
  * evaluator that picks a few of the positions it is called on (the leaves of the search, quiet or not); from each picked
  * position a separate game is played at {@code --nodes} per move, and positions of that game are saved at its start and then
  * every 20-40 plies. Options: {@code --internal --outer-nodes 2000 --select-prob 0.0002 --max-select 100}.
+ *
+ * With {@code --pattern off} the search evaluator is the features plus the pair table, without the pattern table (the engine
+ * as it runs with {@code PatternBlend 0}).
  *
  * Record layout (big endian): game id (int), mine (long), theirs (long), walls (long), ply (short), search score (short, side
  * to move, clipped), static evaluation of the generating engine (short, clipped), result (byte: 0 loss, 1 draw, 2 win for the
@@ -63,6 +67,11 @@ public final class GenData {
         return defaultEvaluator(128);
     }
 
+    /** The hand-made features alone: the base of a pair table that is used without the pattern table. */
+    static Evaluator featuresOnly() {
+        return new FeatureEvaluator(new FeatureEvaluator.Weights(FeatureEvaluator.SCALE, 4, 0, 0, 4, 0, 8, 32, 0, 0, 0, -3, 0));
+    }
+
     /** Feature and pattern evaluation as the engine builds it; {@code margin} is the pattern table's lazy margin. */
     static Evaluator defaultEvaluator(int margin) throws IOException {
         Evaluator base = new FeatureEvaluator(new FeatureEvaluator.Weights(FeatureEvaluator.SCALE, 4, 0, 0, 4, 0, 8, 32, 0, 0, 0, -3, 0));
@@ -79,6 +88,8 @@ public final class GenData {
         long seed = 1;
         int hash = 8;
         int margin = 128;
+        boolean recordFeaturesOnly = false;
+        boolean noPattern = false;
         String pair = "builtin";
         double pairBlend = 0.9;
         boolean internal = false;
@@ -100,6 +111,8 @@ public final class GenData {
                 case "--select-prob" -> selectProb = Double.parseDouble(args[++i]);
                 case "--max-select" -> maxSelect = Integer.parseInt(args[++i]);
                 case "--margin" -> margin = Integer.parseInt(args[++i]);
+                case "--record" -> recordFeaturesOnly = args[++i].equals("features");
+                case "--pattern" -> noPattern = args[++i].equals("off");
                 case "--pair" -> pair = args[++i];
                 case "--pair-blend" -> pairBlend = Double.parseDouble(args[++i]);
                 default -> throw new IllegalArgumentException("unknown option " + args[i]);
@@ -109,7 +122,7 @@ public final class GenData {
             System.err.println("usage: GenData --out FILE [--games N] [--nodes N] [--threads N] [--opening-min N] [--opening-max N] [--seed N]");
             System.exit(2);
         }
-        Evaluator staticEvaluator = defaultEvaluator(margin);
+        Evaluator staticEvaluator = noPattern ? featuresOnly() : defaultEvaluator(margin);
         Evaluator evaluator = staticEvaluator;
         if (pair.equals("builtin")) {
             evaluator = spamalot.gataxx.eval.PairEvaluator.builtIn(staticEvaluator, pairBlend).withMargin(margin);
@@ -119,7 +132,7 @@ public final class GenData {
             }
         }
         final Evaluator searchEvaluator = evaluator;
-        final Evaluator recordedEvaluator = staticEvaluator;
+        final Evaluator recordedEvaluator = recordFeaturesOnly ? featuresOnly() : staticEvaluator;
         final int fGames = games;
         final int fNodes = nodes;
         final int fMin = openingMin;

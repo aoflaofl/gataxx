@@ -1167,6 +1167,40 @@ Funes (`dd319f1`) builds as for 1.8.0: TikTaxx 400 games, seed 5150: **+367 -33,
 **+1085 -115, +389.9 +/- 33.4**; Funes 400 games, seed 5150: **+366 -34, +412.8 +/- 61.0**. `bin/Moonbird-native`
 (`d6a6107`), 1200 games, seed 7: **+703 -497, +60.2 +/- 20.0** (1.8.0: -251.9).
 
+## Evaluation speed: drop the pattern table, retrain the pair table, 2026-10-17
+
+**Goal:** more nodes per second at the same evaluation strength. `bench 12` (16 positions, depth 12) was the yardstick: 8,122,841
+nodes in 2.2-2.3 s, 3.6-3.7M nodes/s, checksum 503.
+
+**Where the time goes** (JFR, 1 ms sampling, `bench 13`): evaluation 68% of the samples (pattern-table sum 22%, pair-table sum 34%,
+features 4%, the rest glue), half of it called from quiescence stand-pats and half from the main search. The search evaluates
+1.78 positions per node, and 33% of those evaluations repeat a position already evaluated in the same search (measured with
+a counting wrapper that also reproduced `bench` exactly).
+
+**Exact micro-optimisations that did not help** (values identical, `bench` checksum unchanged, judged by alternating A/B runs):
+a base-3 pair table 10x smaller (6,561 patterns per placement instead of 65,536): 3.52-3.57M vs 3.59-3.63M nodes/s; building
+the 80 lookup indices in 16-bit lanes: 3.45M (slower); padding the 128 KB distance between placement tables to dodge cache-set
+conflicts: a micro-benchmark on random positions showed -4% evaluation time, the search showed +2% *slower* (median 3.715M vs
+3.786M at depth 13); indexing the pattern table by square class (10 KB instead of 47 KB): no change. In the search the same few
+table entries are used over and over, so table size and layout do not matter; the cost is the number of lookups (about 129 per
+evaluation, 4-5 cycles each). A hash table of evaluation results would not pay either: a probe into a table too big for the cache
+costs about as much as the evaluation it saves.
+
+**What helped: fewer lookups.** Drop the 49-square pattern table (-35 ns of 125 ns per evaluation) and let a retrained pair table
+learn what it knew. `GenData --record features` records the hand-made features alone as the base the pair table corrects, and
+`--pattern off --pair FILE --pair-blend 1.0` makes the generating search use the new configuration. Round 1: 200,000 games at 8000
+nodes searched by the old engine (15.46M positions), `PairFit` (validation loss 0.5672 against 0.6183 for the features
+alone; the old pattern-based fits reached 0.579-0.580 on different data). `PatternBlend 0`, `PairBlend 100`, 50 ms, 1200 games:
+**+87.2 +/- 20.3** against the old default at equal time per move; fresh seed, 2000 games: **+86.5 +/- 15.7**; 4.6M nodes/s, depth 12 in
+1.56 s instead of 2.17 s. Round 2: 200,000 games searched by the round-1 engine (15.43M positions): the table fitted on round 2
+alone scored **+1.7 +/- 19.7** against round 1, the two rounds pooled (31M positions) **+27.9 +/- 19.7** (1200 games), fresh seed
+2000 games **+25.8 +/- 15.3**.
+
+**New defaults:** `PatternBlend 0` (the pattern table is off but still available), `PairBlend 100`, embedded table = the pooled
+round 1 + 2 fit. `bench 12`: 7,344,203 nodes in 1.69 s, **4.35M nodes/s**, checksum 398. Against the released 1.9.0 jar at 50 ms,
+2000 games, seed 8001: **+1316 -684, +113.7 +/- 16.0**. Against `bin/Moonbird-native` at 100 ms, Hash 128, 1200 games, seed 7:
+**+840 -360, +147.2 +/- 21.4** (1.9.0: +60.2).
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.

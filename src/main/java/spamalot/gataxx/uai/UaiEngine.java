@@ -97,11 +97,11 @@ public final class UaiEngine {
     private int historyPenaltyDiv = 24;
     private int orderEdgeBonus = 1;
     private String pairFile = "";
-    private int pairBlend = 90;
+    private int pairBlend = 100;
     private int partialIterations = 1;
     private int jumpCutNearDepth;
     private String patternFile = "";
-    private int patternBlend = 65;
+    private int patternBlend = 0;
     private int patternMargin = 128;
     private int pairMargin = 128;
     private int threads = 1;
@@ -173,11 +173,11 @@ public final class UaiEngine {
                     send("option name FutilityMargin type spin default 48 min 0 max 1000");
                     send("option name FutilityDepth type spin default 2 min 1 max 6");
                     send("option name PatternFile type string default <empty>");
-                    send("option name PatternBlend type spin default 65 min 0 max 100");
+                    send("option name PatternBlend type spin default 0 min 0 max 100");
                     send("option name PatternMargin type spin default 128 min 0 max 2000");
                     send("option name Threads type spin default 1 min 1 max 64");
                     send("option name PairFile type string default <empty>");
-                    send("option name PairBlend type spin default 90 min 0 max 300");
+                    send("option name PairBlend type spin default 100 min 0 max 300");
                     send("option name IirMinDepth type spin default 3 min 0 max 20");
                     send("option name FutilityReduction type spin default 24 min 0 max 500");
                     send("option name FutilityKeepZero type spin default 0 min 0 max 1");

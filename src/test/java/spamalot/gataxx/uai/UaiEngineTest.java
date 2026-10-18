@@ -56,11 +56,11 @@ class UaiEngineTest {
         assertEquals("option name FutilityMargin type spin default 48 min 0 max 1000", out.get(17));
         assertEquals("option name FutilityDepth type spin default 2 min 1 max 6", out.get(18));
         assertEquals("option name PatternFile type string default <empty>", out.get(19));
-        assertEquals("option name PatternBlend type spin default 65 min 0 max 100", out.get(20));
+        assertEquals("option name PatternBlend type spin default 0 min 0 max 100", out.get(20));
         assertEquals("option name PatternMargin type spin default 128 min 0 max 2000", out.get(21));
         assertEquals("option name Threads type spin default 1 min 1 max 64", out.get(22));
         assertEquals("option name PairFile type string default <empty>", out.get(23));
-        assertEquals("option name PairBlend type spin default 90 min 0 max 300", out.get(24));
+        assertEquals("option name PairBlend type spin default 100 min 0 max 300", out.get(24));
         assertEquals("option name IirMinDepth type spin default 3 min 0 max 20", out.get(25));
         assertEquals("option name FutilityReduction type spin default 24 min 0 max 500", out.get(26));
         assertEquals("option name FutilityKeepZero type spin default 0 min 0 max 1", out.get(27));
