@@ -1264,3 +1264,12 @@ best (4 threads: 1.5x, 1.6x, 1.8x, 1.65x; 8 threads: 2.5x, 2.9x, 2.7x, 2.7x), so
 - Strength gain per extra ply near depth 8.
 - A time-handicap ladder against Funes (how much extra time gataxx needs), and the effect of selective search
   (null-move pruning, late-move reductions, futility pruning) on the depth reached.
+
+## Removed in 2.0
+
+The 2.0 cleanup deleted the experiments that never paid off, with their options and code: the 49-square pattern table
+(`PatternBlend`, `PatternFile`, `PatternMargin`, `PatternFit`, `Teacher`, `Distill`, `LinearRegression`), null-move pruning (two styles),
+aspiration windows, history ordering, TT narrowing, the evaluation cache, the quiescence delta, static futility, the LMR formula
+variants, `FutilityKeepZero`, `JumpCutNear`, the zero-weight evaluation features (`EvalMobility`, `EvalExposure`, `EvalTerritory`,
+`EvalCorner`, `EvalRing1`, `EvalThreat`, `EvalFade`) and `PairPlacements`. Play is unchanged (`bench 12` gives the same nodes and
+score checksum as before the cleanup). The measurements above keep their option names; the code is at tag `v1.10.0`.

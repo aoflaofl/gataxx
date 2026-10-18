@@ -48,10 +48,10 @@ for r in $(seq 1 "$ROUNDS"); do
   else
     pair=(--pair "$OUT/table-$((r - 1)).bin")
   fi
-  # The search is done by the engine as it plays (features plus the pair table, no pattern table); what is recorded as the base
+  # The search is done by the engine as it plays (features plus the pair table); what is recorded as the base
   # is the features alone, which is what the table has to correct.
   run java -Xmx4g -cp "$JAR" spamalot.gataxx.tools.GenData --out "$OUT/round-$r.bin" --games "$GAMES" --nodes "$NODES" \
-    --threads "$THREADS" --seed $((SEED + r - 1)) --record features --pattern off "${pair[@]}" --pair-blend 1.0
+    --threads "$THREADS" --seed $((SEED + r - 1)) "${pair[@]}" --pair-blend 1.0
   data+=("$OUT/round-$r.bin")
   joined=$(IFS=,; echo "${data[*]}")
   run java -Xmx"$FIT_HEAP" -cp "$JAR" spamalot.gataxx.tools.PairFit --data "$joined" --out "$OUT/table-$r.bin" \

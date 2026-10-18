@@ -30,11 +30,6 @@ public final class PairEvaluator implements Evaluator {
     private final int scale;
     private final double blend;
     private int margin;
-    private boolean[] active = PairPatterns.activeMask("hvda");
-    private boolean useH = true;
-    private boolean useV = true;
-    private boolean useD = true;
-    private boolean useA = true;
 
     private final ThreadLocal<int[]> blocks = ThreadLocal.withInitial(() -> new int[49]);
     private final ThreadLocal<int[]> patterns = ThreadLocal.withInitial(() -> new int[PairPatterns.PLACEMENTS]);
@@ -105,20 +100,6 @@ public final class PairEvaluator implements Evaluator {
         return this;
     }
 
-    /**
-     * Sums only the placements of the given kinds ({@code h}, {@code v}, {@code d}, {@code a}: see {@link PairPatterns#type}), which
-     * makes the evaluation faster by one table lookup per dropped placement. The weight table must have been fitted for the same
-     * kinds ({@code PairFit --placements}); the default {@code hvda} uses all 80.
-     */
-    public PairEvaluator withPlacements(String types) {
-        this.active = PairPatterns.activeMask(types);
-        this.useH = types.indexOf('h') >= 0;
-        this.useV = types.indexOf('v') >= 0;
-        this.useD = types.indexOf('d') >= 0;
-        this.useA = types.indexOf('a') >= 0;
-        return this;
-    }
-
     @Override
     public int evaluate(Position pos, int alpha, int beta) {
         int b = base.evaluate(pos, alpha, beta);
@@ -150,9 +131,7 @@ public final class PairEvaluator implements Evaluator {
         PairPatterns.patterns(mine, theirs, walls, blocks.get(), p);
         int sum = 0;
         for (int i = 0; i < PairPatterns.PLACEMENTS; i++) {
-            if (active[i]) {
-                sum += weights[i << 16 | p[i]];
-            }
+            sum += weights[i << 16 | p[i]];
         }
         return sum;
     }
@@ -184,21 +163,11 @@ public final class PairEvaluator implements Evaluator {
         long b3 = a3 + (a4 << 4);
         long b4 = a4 + (a5 << 4);
         long b5 = a5 + (a6 << 4);
-        int sum = 0;
-        if (useH) {
-            sum += horizontal(b0, 0) + horizontal(b1, 4) + horizontal(b2, 8) + horizontal(b3, 12) + horizontal(b4, 16)
-                    + horizontal(b5, 20);
-        }
-        if (useV) {
-            sum += vertical(b0, b2, 24) + vertical(b1, b3, 30) + vertical(b2, b4, 36) + vertical(b3, b5, 42);
-        }
-        if (useD) {
-            sum += diagonal(b0, b2, 48) + diagonal(b1, b3, 52) + diagonal(b2, b4, 56) + diagonal(b3, b5, 60);
-        }
-        if (useA) {
-            sum += diagonal(b2, b0, 64) + diagonal(b3, b1, 68) + diagonal(b4, b2, 72) + diagonal(b5, b3, 76);
-        }
-        return sum;
+        return horizontal(b0, 0) + horizontal(b1, 4) + horizontal(b2, 8) + horizontal(b3, 12) + horizontal(b4, 16)
+                + horizontal(b5, 20)
+                + vertical(b0, b2, 24) + vertical(b1, b3, 30) + vertical(b2, b4, 36) + vertical(b3, b5, 42)
+                + diagonal(b0, b2, 48) + diagonal(b1, b3, 52) + diagonal(b2, b4, 56) + diagonal(b3, b5, 60)
+                + diagonal(b2, b0, 64) + diagonal(b3, b1, 68) + diagonal(b4, b2, 72) + diagonal(b5, b3, 76);
     }
 
     /** Placements of two blocks two files apart on one rank pair: the first placement is {@code first}. */

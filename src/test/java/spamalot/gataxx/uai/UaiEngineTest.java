@@ -62,25 +62,22 @@ class UaiEngineTest {
 
     /** The supported options: a change here is a change of the engine's interface. */
     private static final java.util.Set<String> EXPECTED_OPTIONS = new java.util.LinkedHashSet<>(List.of(
-            "Hash", "Tempo", "EvalSafe", "EvalMobility", "EvalExposure", "EvalReach", "EvalTerritory", "EvalEdge", "EvalCorner",
-            "EvalRing1", "EvalCohesion", "EvalThreat", "EvalFade", "Pvs", "PatternFile", "PatternBlend", "PatternMargin", "Threads",
-            "PairFile", "PairBlend", "IirMinDepth", "FutilityReduction", "PartialIterations", "Lmr", "LmrMoves", "LmrMinDepth",
-            "LmrDeepMoves", "QuiesceMinCaptures", "QuiesceMaxPly", "QuiesceJumpCut", "JumpCut", "JumpCutMinEmpties", "TimeModel",
-            "TimeSoft", "TimeHard", "PairMargin", "PairPlacements", "DeferMinDepth"));
+            "Hash", "Tempo", "EvalSafe", "EvalReach", "EvalEdge", "EvalCohesion", "Pvs", "Threads", "PairFile", "PairBlend",
+            "IirMinDepth", "FutilityReduction", "PartialIterations", "Lmr", "LmrMoves", "LmrMinDepth", "LmrDeepMoves",
+            "QuiesceMinCaptures", "QuiesceMaxPly", "QuiesceJumpCut", "JumpCut", "JumpCutMinEmpties", "TimeModel", "TimeSoft",
+            "TimeHard", "PairMargin", "DeferMinDepth"));
 
     private static final java.util.Map<String, String> EXPECTED_DEFAULTS = java.util.Map.ofEntries(
             java.util.Map.entry("Hash", "type spin default 16 min 0 max 1024"),
             java.util.Map.entry("Threads", "type spin default 1 min 1 max 64"),
             java.util.Map.entry("PairBlend", "type spin default 100 min 0 max 300"),
-            java.util.Map.entry("PatternBlend", "type spin default 0 min 0 max 100"),
             java.util.Map.entry("IirMinDepth", "type spin default 3 min 0 max 20"),
             java.util.Map.entry("FutilityReduction", "type spin default 24 min 0 max 500"),
             java.util.Map.entry("QuiesceMinCaptures", "type spin default 3 min 0 max 8"),
             java.util.Map.entry("QuiesceMaxPly", "type spin default 5 min 0 max 16"),
             java.util.Map.entry("JumpCut", "type spin default 3 min 0 max 3"),
             java.util.Map.entry("TimeModel", "type spin default 1 min 0 max 1"),
-            java.util.Map.entry("DeferMinDepth", "type spin default 4 min 0 max 30"),
-            java.util.Map.entry("PairPlacements", "type string default hvda"));
+            java.util.Map.entry("DeferMinDepth", "type spin default 4 min 0 max 30"));
 
     private static int lastHashfull(List<String> out) {
         String last = out.stream().filter(l -> l.startsWith("info depth ")).reduce((x, y) -> y).orElseThrow();
@@ -126,26 +123,18 @@ class UaiEngineTest {
     @Test
     void quiescenceOptionsChangeTheSearch() {
         String pos = "position fen o6/o6/o3x2/6o/2x1x2/3x3/7 x 0 9\n";
-        String plain = bestmove(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 0\n" + pos + "go depth 1\n"));
-        String withQ = bestmove(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 2\nsetoption name QuiesceMaxPly value 6\n"
+        String plain = bestmove(run("setoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 0\n" + pos + "go depth 1\n"));
+        String withQ = bestmove(run("setoption name PairBlend value 0\nsetoption name QuiesceMinCaptures value 2\nsetoption name QuiesceMaxPly value 6\n"
                 + pos + "go depth 1\n"));
         assertEquals("c3b5", plain);
         assertEquals("f3", withQ);
     }
 
     @Test
-    void theBuiltInPatternTableIsOnByDefault() {
-        String go = "position startpos moves b6\ngo depth 2\n";
-        int byDefault = scoreAtDepth(run(go), 2);
-        int off = scoreAtDepth(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
-        assertTrue(byDefault != off, byDefault + " vs " + off);
-    }
-
-    @Test
     void tempoOptionShiftsReportedScore() {
         // At depth 1 the root score is minus the opponent's static score, so tempo lowers it by exactly that bonus.
         // 32 units = 2 pieces = 200 centipieces.
-        String script = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nposition startpos\ngo depth 1\n";
+        String script = "setoption name PairBlend value 0\nposition startpos\ngo depth 1\n";
         int base = firstScore(run("setoption name Tempo value 0\n" + script));
         assertEquals(base - 200, firstScore(run("setoption name Tempo value 32\n" + script)));
         assertEquals(base - 100, firstScore(run("setoption name Tempo value 16\n" + script)));
@@ -160,14 +149,14 @@ class UaiEngineTest {
     @Test
     void evalWeightOptionsAcceptNegativesAndChangeScores() {
         String script = "position fen 6o/7/7/7/7/-x5/xx5 x 0 1\ngo depth 1\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
+        String base = "setoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n";
         int plain = firstScore(run(base + script));
         int safe = firstScore(run(base + "setoption name EvalSafe value 16\n" + script));
         int unsafe = firstScore(run(base + "setoption name EvalSafe value -16\n" + script));
         assertTrue(safe != plain && unsafe != plain && safe != unsafe, plain + " " + safe + " " + unsafe);
-        List<String> out = run("setoption name EvalMobility value -64\nsetoption name EvalExposure value 64\nisready\n");
+        List<String> out = run("setoption name EvalReach value -64\nsetoption name EvalEdge value 64\nisready\n");
         assertEquals(List.of("readyok"), out);
-        out = run("setoption name EvalSafe value 65\nsetoption name EvalMobility value -65\nisready\n");
+        out = run("setoption name EvalSafe value 65\nsetoption name EvalReach value -65\nisready\n");
         assertEquals(2, out.stream().filter(l -> l.startsWith("info string error")).count(), out.toString());
     }
 
@@ -175,61 +164,19 @@ class UaiEngineTest {
     void newEvalWeightOptionsChangeScores() {
         // A busy mid-game position searched to depth 3: every feature has something to measure there.
         String script = "position startpos moves b6 a1a3 f2 g7e5 b5 e5c5 f3\ngo depth 3\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
+        String base = "setoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
                 + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
         int plain = scoreAtDepth(run(base + script), 3);
-        for (String opt : new String[] {"EvalReach", "EvalTerritory", "EvalEdge", "EvalRing1",
-                "EvalCohesion", "EvalThreat", "EvalMobility", "EvalExposure", "EvalSafe"}) {
+        for (String opt : new String[] {"EvalReach", "EvalEdge", "EvalCohesion", "EvalSafe"}) {
             int changed = scoreAtDepth(run(base + "setoption name " + opt + " value 32\n" + script), 3);
             assertTrue(changed != plain, opt + ": " + plain + " vs " + changed);
         }
-    }
-
-    @Test
-    void cornerOptionChangesScoreWhereACornerCanBeTaken() {
-        // x on b1 can clone into the empty corner a1; o holds no corner, so taking it changes the corner difference.
-        String script = "position fen 5o1/7/7/7/7/7/1x5 x 0 1\ngo depth 1\n";
-        String base = "setoption name PatternBlend value 0\nsetoption name PairBlend value 0\nsetoption name Tempo value 0\nsetoption name QuiesceMinCaptures value 0\n"
-                + "setoption name EvalSafe value 0\nsetoption name EvalReach value 0\nsetoption name EvalEdge value 0\n";
-        int plain = scoreAtDepth(run(base + script), 1);
-        int withCorner = scoreAtDepth(run(base + "setoption name EvalCorner value 32\n" + script), 1);
-        assertTrue(withCorner != plain, plain + " vs " + withCorner);
     }
 
     private static int scoreAtDepth(List<String> out, int depth) {
         String line = out.stream().filter(l -> l.startsWith("info depth " + depth + " ")).findFirst().orElseThrow();
         String[] t = line.split(" ");
         return Integer.parseInt(t[Arrays.asList(t).indexOf("cp") + 1]);
-    }
-
-    @Test
-    void patternTableOptionsLoadValidateAndChangeTheSearch(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws java.io.IOException {
-        java.util.List<String> table = new java.util.ArrayList<>();
-        table.add("# intercept 0");
-        table.add("# units 0 1");
-        for (int state = 0; state < 3; state++) {
-            for (int cls = 0; cls < 10; cls++) {
-                for (int m = 0; m <= 8; m++) {
-                    for (int t = 0; t <= 8; t++) {
-                        if (spamalot.gataxx.eval.LocalPatterns.index(state, cls, m, t) >= 0) {
-                            // Strongly reward stones on the left half to make the table's effect obvious.
-                            table.add(state + " " + cls + " " + m + " " + t + " " + (state == 1 ? 200 : state == 2 ? -200 : 0));
-                        }
-                    }
-                }
-            }
-        }
-        java.nio.file.Path f = dir.resolve("t.txt");
-        java.nio.file.Files.write(f, table);
-        String go = "position startpos moves b6\ngo depth 2\n";
-        int plain = scoreAtDepth(run("setoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
-        int blended = scoreAtDepth(run("setoption name PatternFile value " + f + "\nsetoption name PatternBlend value 100\n" + go), 2);
-        assertTrue(plain != blended, plain + " vs " + blended);
-        int zero = scoreAtDepth(run("setoption name PatternFile value " + f + "\nsetoption name PatternBlend value 0\nsetoption name PairBlend value 0\n" + go), 2);
-        assertEquals(plain, zero, "blend 0 leaves the engine unchanged");
-        List<String> bad = run("setoption name PatternFile value /no/such/file.txt\nisready\n");
-        assertTrue(bad.get(0).startsWith("info string error: cannot load pattern table"), bad.toString());
-        assertEquals("readyok", bad.get(1));
     }
 
     @Test

@@ -128,33 +128,4 @@ class PairPatternsTest {
         // The start position has stones on a7, g7, a1 and g1; side to move x owns a7 and g1: symmetric images of the class.
         assertTrue(e2.evaluate(Position.startPos()) > 0);
     }
-
-    @Test
-    void placementKindsAndMasks() {
-        int h = 0;
-        int v = 0;
-        int d = 0;
-        int a = 0;
-        for (int p = 0; p < PairPatterns.PLACEMENTS; p++) {
-            switch (PairPatterns.type(p)) {
-                case 'h' -> h++;
-                case 'v' -> v++;
-                case 'd' -> d++;
-                default -> a++;
-            }
-        }
-        assertEquals(24, h);
-        assertEquals(24, v);
-        assertEquals(16, d);
-        assertEquals(16, a);
-        boolean[] hv = PairPatterns.activeMask("vh");
-        int count = 0;
-        for (boolean b : hv) {
-            count += b ? 1 : 0;
-        }
-        assertEquals(48, count);
-        assertTrue(hv[0] && hv[47] && !hv[48] && !hv[79]);
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> PairPatterns.activeMask("hx"));
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> PairPatterns.activeMask(""));
-    }
 }

@@ -16,7 +16,7 @@ class GenDataTest {
     private byte[] generate(String name, int threads) throws Exception {
         Path out = dir.resolve(name);
         GenData.main(new String[] {"--out", out.toString(), "--games", "24", "--nodes", "300", "--threads",
-            String.valueOf(threads), "--seed", "5", "--record", "features", "--pattern", "off", "--pair", "builtin",
+            String.valueOf(threads), "--seed", "5", "--pair", "builtin",
             "--pair-blend", "1.0", "--hash", "1"});
         return Files.readAllBytes(out);
     }
@@ -36,7 +36,7 @@ class GenDataTest {
         byte[] a = generate("a.bin", 2);
         Path out = dir.resolve("b.bin");
         GenData.main(new String[] {"--out", out.toString(), "--games", "24", "--nodes", "300", "--threads", "2", "--seed", "6",
-            "--record", "features", "--pattern", "off", "--pair", "builtin", "--pair-blend", "1.0", "--hash", "1"});
+            "--pair", "builtin", "--pair-blend", "1.0", "--hash", "1"});
         org.junit.jupiter.api.Assertions.assertFalse(java.util.Arrays.equals(a, Files.readAllBytes(out)));
     }
 }

@@ -10,8 +10,8 @@ the engine's own games. `scripts/train.sh` runs the whole procedure.
 A *round* is two steps; a run is several rounds, each fitted on all the data so far.
 
 1. **Games** (`tools.GenData`). The engine plays itself with a fixed number of nodes per move (default 8000) from random 6 to 12 ply
-   openings. The search uses the current pair table and no pattern table. Every position after the opening is written with the
-   search score, the final result of its game, and the **static evaluation of the hand-made features alone** (`--record features`):
+   openings. The search uses the current pair table. Every position after the opening is written with the
+   search score, the final result of its game, and the **static evaluation of the hand-made features alone**:
    that is the base the table has to correct. Records are 35 bytes (`GenData` documents the layout).
 2. **Fit** (`tools.PairFit`). Adagrad logistic regression of `sigmoid((features + table) / S)` on a target that is half the game result
    and half the squashed search score (`--lambda 0.5`); `S` is found automatically. Weights of patterns that are mirror images or
@@ -41,7 +41,7 @@ takes 3-8 seconds per epoch on 15-46 million positions with all cores. A full th
   different (equally good) tables. Two runs of `scripts/train.sh` with `FIT_THREADS=1` and the same seed produce identical
   checksums.
 - The table embedded in 1.10.0 was made with the same procedure, but round 1 was searched by the 1.9.0 engine (which still had the
-  pattern table) and rounds 2 and 3 by the engines of that moment, so running the script today gives a new table of the same kind, not
+  pattern table, since removed) and rounds 2 and 3 by the engines of that moment, so running the script today gives a new table of the same kind, not
   that exact file.
 
 ## Trying a table and adopting it

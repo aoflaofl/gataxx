@@ -23,14 +23,14 @@ thread each, default settings, random 6-ply openings, 100 ms per move unless sta
 
 - Version 1.10.0 beats 1.9.0 in 67% of games at a fixed 50 ms per move (+122 Elo, 2000 games) and in 69% on a game clock
   (+136 Elo, 1200 games at 3 s + 50 ms per game, no time forfeits). One change: the 49-square pattern table is gone
-  (`PatternBlend 0`) and the pair table, retrained on three rounds of the engine's own games (46M positions, the hand-made
+  (switched off by `PatternBlend 0`) and the pair table, retrained on three rounds of the engine's own games (46M positions, the hand-made
   features alone as the base it corrects), does its work. An evaluation costs about 28% less, so the search runs 4.2-4.5M nodes per
   second instead of 3.6-3.7M, and the better evaluation reaches depth 12 in about 35% less time. Dropping pair placements for
-  more speed lost strength at equal time (see `PairPlacements`), and layout changes that keep the values identical (smaller
+  more speed lost strength at equal time (every subset of the 80 placements was tried), and layout changes that keep the values identical (smaller
   tables, other index arithmetic) did not speed up the search: its cost is the number of table lookups.
 - Version 1.9.0 beats 1.8.0 in 87% of games on a game clock (+333 Elo, 2000 games at 3 s + 50 ms per game, no time forfeits)
   and in 86% at a fixed 50 ms per move (+315 Elo, 2000 games). Three changes, in order of size: the lazy-evaluation margins
-  (`PatternMargin`, new `PairMargin`) are 128 instead of 32 (+274 Elo; with the pair table in, the small margin skipped
+  (`PatternMargin`, new `PairMargin`; the pattern table is gone since 2.0) are 128 instead of 32 (+274 Elo; with the pair table in, the small margin skipped
   corrections that decide cutoffs); the pair table was retrained on three rounds of self-play by the corrected engine (about +100
   Elo, 46M positions) and now includes a phase-indexed mobility term (+28 to +35 Elo); and both table sums are computed a rank
   at a time in byte lanes (identical values, 38% more nodes per second at equal margins, +35 Elo).
@@ -63,7 +63,7 @@ thread each, default settings, random 6-ply openings, 100 ms per move unless sta
 - Version 1.4.0 beats 1.3.0 by about +38 Elo (888-712, 1600 games at 50 ms per move): the same search, about 43% faster
   per node.
 - Version 1.3.0 beats 1.2.0 in 59-61% of games (+46 to +76 Elo on three seeds, 800 games each at 50 ms per move). The
-  gain comes from a learned table of local board patterns (see `PatternBlend` below).
+  gain comes from a learned table of local board patterns (since replaced by the pair table).
 - Version 1.2.0 beats 1.1.0 in 66% of games (+117 Elo, 800 games at 50 ms per move).
 - For 1.1.0, TikTaxx needed roughly 7-8 times gataxx's thinking time per move to score level (not re-measured since).
 
@@ -98,8 +98,8 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name QuiesceMinCaptures value <n>` | Quiescence search extends moves converting at least this many pieces (default 3; `0` turns quiescence off). |
 | `setoption name QuiesceMaxPly value <n>` | Most extra plies quiescence may search (default 5, max 16). Odd values played best: 5 beat 3, 4, 6 and 7. |
 | `setoption name QuiesceJumpCut value 0\|1\|2` | Which jumps quiescence tries. `1` (default) leaves out jumps to squares a clone could also reach, which convert the same pieces and leave the origin empty: 2.8x fewer nodes at depth 9 and +88 Elo. `2` cuts them only when the origin stone cannot be attacked (almost nothing); `0` keeps all. |
-| `setoption name JumpCut value 0\|1\|2\|3` | The same idea in the main search, where cutting every such jump loses 75 Elo (`1`): a jump can save an attackable stone that a clone leaves behind. `3` (default) cuts only those that convert nothing (about +20 to +35 Elo); `0` keeps all. `JumpCutMinEmpties` (default 12) keeps every jump in the endgame; `JumpCutNear` and `JumpCutNearDepth` apply a different mode within a few plies of the leaves (off by default: it saves nodes but no strength). |
-| `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8), `EvalReach` (pieces no enemy can threaten next move, default 4), `EvalTerritory`, `EvalMobility` and `EvalExposure` (default 0) are also available. `EvalCohesion` (default -3: penalises adjacent own pieces, favouring spread-out groups) and `EvalThreat` (default 0) are in 1/64 piece, the others in 1/16. `EvalFade` (default 0, off) scales the positional weights down as the board fills; tested, no gain. |
+| `setoption name JumpCut value 0\|1\|2\|3` | The same idea in the main search, where cutting every such jump loses 75 Elo (`1`): a jump can save an attackable stone that a clone leaves behind. `3` (default) cuts only those that convert nothing (about +20 to +35 Elo); `0` keeps all. `JumpCutMinEmpties` (default 12) keeps every jump in the endgame; |
+| `setoption name EvalSafe value <n>` | Weight of safe pieces (no empty neighbour) in 1/16 piece (default 4). `EvalEdge` (pieces on the outer ring, default 8) and `EvalReach` (pieces no enemy can threaten next move, default 4) are also in 1/16 piece. `EvalCohesion` (default -3: penalises adjacent own pieces, favouring spread-out groups) is in 1/64 piece. |
 | `d` | Prints the board and FEN. |
 | `perft <n>` | Per-move node counts, for debugging. |
 | `bench [depth]` | Searches 16 fixed positions to a fixed depth (default 6) and prints nodes, time, nps and a score checksum, for comparing search changes exactly. |
@@ -107,14 +107,11 @@ printf 'position startpos\ngo depth 6\n' | java -jar target/gataxx.jar
 | `setoption name Lmr value 0\|1` | Late-move reductions (default 1) with `LmrMoves` (3), `LmrMinDepth` (4) and `LmrDeepMoves` (6: moves ranked this late are reduced by two plies). |
 | `setoption name Threads value <n>` | Search threads (default 1, max 64): Lazy SMP, where helper threads search the same position over a shared lock-free transposition table, skipping different iterations. The search is not deterministic with more than one thread. Against 1 thread at equal time per move (50 ms): 2 threads about +30 Elo, 4 threads about +105, 8 threads about +125. |
 | `setoption name PairBlend value <n>` | Percentage (default 100, `0` = off) of the built-in pair-pattern correction added to the evaluation: for 80 placements of two 2x2 blocks (side by side, above each other, or touching at a corner) the exact contents of the eight squares select one of 65,536 learned weights, tied under the board's symmetries and trained by `tools.PairFit` on self-play outcomes and scores (about +150 Elo). `PairMargin` (default 128, in 1/16 piece) skips the correction when the plain score is that far outside the search window. `PairFile` loads another weight file instead of the built-in one. |
-| `setoption name PairPlacements value <letters>` | Which placements of the pair table are summed: `h` (two blocks side by side), `v` (above each other), `d` and `a` (touching at a corner, the two diagonals); default `hvda` = all 80. A shorter set is faster per node but needs a table fitted for it (`tools.PairFit --placements`); the built-in table is for all 80, and every subset tried lost strength at equal time. |
 | `setoption name DeferMinDepth value <n>` | With `Threads` above 1: at nodes with at least this many plies left (default 4, `0` = off), a move that another thread is already searching is put off until the other moves have been tried, so the threads repeat each other's work less. It raised the time-to-depth speedup of 4 threads from about 1.2x to 1.7x and of 8 threads from about 1.5x to 2.6x. No effect with one thread. |
 | `setoption name FutilityReduction value <n>` | Graded futility reduction (default 24, `0` = off): from the second move on, a move whose child scores below alpha is searched `(alpha - score) / n` plies shallower (skipped if its depth runs out; re-searched at full depth if it beats alpha). About +125 Elo; 12 to 35 is a plateau. |
 | `setoption name IirMinDepth value <n>` | Internal iterative reduction (default 3, `0` = off): a node with at least this much depth left and no table move is searched one ply shallower (about +65 Elo). |
 | `setoption name TimeModel value 0\|1` | Clock play (`wtime`/`btime`): `1` (default) estimates our moves left from the empty squares, so the late game gets a larger share of the clock; `0` assumes a fixed 30 (about -50 Elo at 3 s + 50 ms per game, -70 sudden death). `TimeSoft` (percent of the per-move budget after which no new iteration starts, default 40) and `TimeHard` (hard limit in tenths of the budget, default 30) tune it further; raising `TimeSoft` to 100 loses. |
 | `setoption name PartialIterations value 0\|1` | When time runs out mid-iteration, play the best move that iteration had completed (default 1). |
-| `setoption name PatternBlend value <n>` | Percentage (default 0 = off since the pair table was retrained to replace it; 65 was the default before) of a built-in learned local-environment table mixed into the evaluation: a weight per square, by its state, its square type and its friendly/enemy neighbour counts. `PatternMargin` and `PairMargin` (default 128, in 1/16 piece) skip the table when the plain score is that far outside the search window (small margins such as 32 cost 200+ Elo once the pair table is in); `PatternFile` loads another table written by `tools.PatternFit` instead of the built-in one. |
-| `setoption name NullMove value 0\|1`, `Futility` | Null-move pruning and futility pruning, with their parameters (`NullR`, `NullMinEmpties`, `FutilityMargin`, `FutilityDepth`). Both default to 0: neither helped in tests (the graded `FutilityReduction` above is a different technique and does). |
 
 `x` moves first and is "black" (`btime`/`binc`); `o` is "white" (`wtime`/`winc`). This matches TikTaxx.
 The engine replies `info depth .. score cp .. nodes .. time .. nps .. pv ..` after each
@@ -147,10 +144,10 @@ core count when using `--movetime`, or CPU contention will skew the results.
 ## Layout
 
 - `board`: bitboard `Position`, moves, FEN, perft
-- `eval`: `Evaluator`, the feature evaluator, the learned local-environment table (`LocalPatterns`, `PatternEvaluator`, resource `pattern-table.txt`) and the trained pair-pattern correction (`PairPatterns`, `PairEvaluator`, resource `pair-patterns.bin`)
+- `eval`: `Evaluator`, the feature evaluator and the trained pair-pattern correction (`PairPatterns`, `PairEvaluator`, resource `pair-patterns.bin`)
 - `search`: `Searcher` (NegaMax/alpha-beta, iterative deepening), limits, time management
 - `uai`: the protocol front end
-- `tools`: the self-play match harness (`Match`, `UaiClient`, `Elo`) and the training pipeline (`GenData` generates self-play positions, `PairFit` trains the pair patterns, `Teacher`, `Distill` and `PatternFit` fit the local-environment table to another engine's scores)
+- `tools`: the self-play match harness (`Match`, `UaiClient`, `Elo`) and the training pipeline (`GenData` generates self-play positions, `PairFit` trains the pair patterns)
 - `scripts`: `outside_engines.sh` plays the standard matches against TikTaxx, Funes and Moonbird
 - `docs/training.md` and `scripts/train.sh`: how the evaluation is learned from the engine's own games, step by step, and how to repeat it.
 

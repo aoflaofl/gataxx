@@ -11,7 +11,6 @@ import spamalot.gataxx.board.Perft;
 import spamalot.gataxx.board.Position;
 import spamalot.gataxx.eval.Evaluator;
 import spamalot.gataxx.eval.FeatureEvaluator;
-import spamalot.gataxx.eval.PatternEvaluator;
 import spamalot.gataxx.eval.FeatureEvaluator.Weights;
 import spamalot.gataxx.search.BenchPositions;
 import spamalot.gataxx.search.ParallelSearch;
@@ -52,21 +51,14 @@ public final class UaiEngine {
     private TranspositionTable tt = new TranspositionTable(DEFAULT_HASH_MB);
     private int tempo = DEFAULT_TEMPO;
     private int evalSafe = DEFAULT_EVAL_SAFE;
-    private int evalMobility;
-    private int evalExposure;
     private int evalReach = DEFAULT_EVAL_REACH;
-    private int evalTerritory;
     private int evalEdge = DEFAULT_EVAL_EDGE;
-    private int evalFade;
-    private int evalCorner;
-    private int evalRing1;
     private int evalCohesion = DEFAULT_EVAL_COHESION;
     private int pvs = 1;
     private int lmr = 1;
     private int lmrMoves = 3;
     private int lmrMinDepth = 4;
     private int lmrDeep = 6;
-    private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceJumpCut = 1;
     private int jumpCut = Position.JUMPS_CUT_QUIET_DOMINATED;
@@ -76,11 +68,7 @@ public final class UaiEngine {
     private String pairFile = "";
     private int pairBlend = 100;
     private int partialIterations = 1;
-    private String patternFile = "";
-    private int patternBlend = 0;
-    private int patternMargin = 128;
     private int pairMargin = 128;
-    private String pairPlacements = "hvda";
     private int deferMinDepth = Searcher.DEFAULT_DEFER_MIN_DEPTH;
     private int threads = 1;
     private int quiesceMaxPly = DEFAULT_QUIESCE_MAX_PLY;
@@ -136,20 +124,10 @@ public final class UaiEngine {
                     send("option name Hash type spin default " + DEFAULT_HASH_MB + " min 0 max " + MAX_HASH_MB);
                     send("option name Tempo type spin default " + DEFAULT_TEMPO + " min 0 max 160");
                     send("option name EvalSafe type spin default " + DEFAULT_EVAL_SAFE + " min -64 max 64");
-                    send("option name EvalMobility type spin default 0 min -64 max 64");
-                    send("option name EvalExposure type spin default 0 min -64 max 64");
                     send("option name EvalReach type spin default " + DEFAULT_EVAL_REACH + " min -64 max 64");
-                    send("option name EvalTerritory type spin default 0 min -64 max 64");
                     send("option name EvalEdge type spin default " + DEFAULT_EVAL_EDGE + " min -64 max 64");
-                    send("option name EvalCorner type spin default 0 min -64 max 64");
-                    send("option name EvalRing1 type spin default 0 min -64 max 64");
                     send("option name EvalCohesion type spin default " + DEFAULT_EVAL_COHESION + " min -64 max 64");
-                    send("option name EvalThreat type spin default 0 min -64 max 64");
-                    send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name Pvs type spin default 1 min 0 max 1");
-                    send("option name PatternFile type string default <empty>");
-                    send("option name PatternBlend type spin default 0 min 0 max 100");
-                    send("option name PatternMargin type spin default 128 min 0 max 2000");
                     send("option name Threads type spin default 1 min 1 max 64");
                     send("option name PairFile type string default <empty>");
                     send("option name PairBlend type spin default 100 min 0 max 300");
@@ -170,7 +148,6 @@ public final class UaiEngine {
                     send("option name TimeSoft type spin default 40 min 5 max 200");
                     send("option name TimeHard type spin default 30 min 10 max 100");
                     send("option name PairMargin type spin default 128 min 0 max 2000");
-                    send("option name PairPlacements type string default hvda");
                     send("option name DeferMinDepth type spin default " + Searcher.DEFAULT_DEFER_MIN_DEPTH + " min 0 max 30");
                     send("uaiok");
                 }
@@ -242,31 +219,14 @@ public final class UaiEngine {
             tempo = spinValue(name, value, 0, 160);
         } else if (name.equalsIgnoreCase("EvalSafe")) {
             evalSafe = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalMobility")) {
-            evalMobility = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalExposure")) {
-            evalExposure = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalReach")) {
             evalReach = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalTerritory")) {
-            evalTerritory = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalEdge")) {
             evalEdge = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalCorner")) {
-            evalCorner = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalRing1")) {
-            evalRing1 = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("EvalCohesion")) {
             evalCohesion = spinValue(name, value, -64, 64);
-        } else if (name.equalsIgnoreCase("EvalThreat")) {
-            evalThreat = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("Pvs")) {
             pvs = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("PatternFile")) {
-            patternFile = value.equals("<empty>") ? "" : value;
-            patternEvaluatorFor(new FeatureEvaluator(new Weights(FeatureEvaluator.SCALE, 0, 0, 0, 0)), 0.5); // validates the file now
-        } else if (name.equalsIgnoreCase("PatternBlend")) {
-            patternBlend = spinValue(name, value, 0, 100);
         } else if (name.equalsIgnoreCase("PairFile")) {
             pairFile = value.equals("<empty>") ? "" : value;
             newEvaluator(); // validates the file now
@@ -280,8 +240,6 @@ public final class UaiEngine {
             partialIterations = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("Threads")) {
             threads = spinValue(name, value, 1, 64);
-        } else if (name.equalsIgnoreCase("PatternMargin")) {
-            patternMargin = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("Lmr")) {
             lmr = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("LmrMoves")) {
@@ -290,8 +248,6 @@ public final class UaiEngine {
             lmrMinDepth = spinValue(name, value, 2, 20);
         } else if (name.equalsIgnoreCase("LmrDeepMoves")) {
             lmrDeep = spinValue(name, value, 0, 40);
-        } else if (name.equalsIgnoreCase("EvalFade")) {
-            evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceJumpCut")) {
@@ -304,13 +260,6 @@ public final class UaiEngine {
             pairMargin = spinValue(name, value, 0, 2000);
         } else if (name.equalsIgnoreCase("DeferMinDepth")) {
             deferMinDepth = spinValue(name, value, 0, 30);
-        } else if (name.equalsIgnoreCase("PairPlacements")) {
-            try {
-                spamalot.gataxx.eval.PairPatterns.activeMask(value.trim());
-                pairPlacements = value.trim();
-            } catch (IllegalArgumentException e) {
-                send("info string " + e.getMessage());
-            }
         } else if (name.equalsIgnoreCase("TimeModel")) {
             timeModel = spinValue(name, value, 0, 1);
         } else if (name.equalsIgnoreCase("TimeSoft")) {
@@ -401,26 +350,13 @@ public final class UaiEngine {
         searchThread.start();
     }
 
-    private Evaluator patternEvaluatorFor(Evaluator base, double blend) {
-        try {
-            PatternEvaluator pe = patternFile.isEmpty()
-                    ? PatternEvaluator.builtIn(base, blend)
-                    : PatternEvaluator.load(java.nio.file.Path.of(patternFile), base, blend);
-            return pe.withMargin(patternMargin);
-        } catch (java.io.IOException | RuntimeException e) {
-            throw new IllegalArgumentException("cannot load pattern table '" + (patternFile.isEmpty() ? "built-in" : patternFile) + "': " + e.getMessage(), e);
-        }
-    }
-
     /** The evaluation built from the current options; stateless, so every search thread can share one. */
     private Evaluator newEvaluator() {
         // Building the evaluator parses and expands the pattern tables, which takes tens of milliseconds: do it once and
         // again only when an option that affects it changes.
-        String key = String.join(",", String.valueOf(evalSafe), String.valueOf(evalMobility), String.valueOf(evalExposure),
-                String.valueOf(evalReach), String.valueOf(evalTerritory), String.valueOf(evalEdge), String.valueOf(tempo),
-                String.valueOf(evalFade), String.valueOf(evalCorner), String.valueOf(evalRing1),
-                String.valueOf(evalCohesion), String.valueOf(evalThreat), patternFile, String.valueOf(patternBlend),
-                String.valueOf(patternMargin), pairFile, String.valueOf(pairBlend), String.valueOf(pairMargin), pairPlacements);
+        String key = String.join(",", String.valueOf(evalSafe), String.valueOf(evalReach), String.valueOf(evalEdge),
+                String.valueOf(tempo), String.valueOf(evalCohesion), pairFile, String.valueOf(pairBlend),
+                String.valueOf(pairMargin));
         if (cachedEvaluator == null || !key.equals(cachedEvaluatorKey)) {
             cachedEvaluator = buildEvaluator();
             cachedEvaluatorKey = key;
@@ -433,12 +369,7 @@ public final class UaiEngine {
 
     private Evaluator buildEvaluator() {
         Evaluator evaluator = new FeatureEvaluator(
-                new Weights(FeatureEvaluator.SCALE, evalSafe, evalMobility, evalExposure,
-                        evalReach, evalTerritory, evalEdge, tempo, evalFade,
-                        evalCorner, evalRing1, evalCohesion, evalThreat));
-        if (patternBlend > 0) {
-            evaluator = patternEvaluatorFor(evaluator, patternBlend / 100.0);
-        }
+                new Weights(FeatureEvaluator.SCALE, evalSafe, 0, 0, evalReach, 0, evalEdge, tempo, 0, 0, 0, evalCohesion, 0));
         if (pairBlend > 0) {
             try {
                 spamalot.gataxx.eval.PairEvaluator pe;
@@ -449,7 +380,7 @@ public final class UaiEngine {
                         pe = spamalot.gataxx.eval.PairEvaluator.load(in, evaluator, pairBlend / 100.0);
                     }
                 }
-                evaluator = pe.withMargin(pairMargin).withPlacements(pairPlacements);
+                evaluator = pe.withMargin(pairMargin);
             } catch (java.io.IOException | RuntimeException e) {
                 throw new IllegalArgumentException("cannot load pair table '" + (pairFile.isEmpty() ? "built-in" : pairFile)
                         + "': " + e.getMessage(), e);
