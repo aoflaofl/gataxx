@@ -152,6 +152,7 @@ core count when using `--movetime`, or CPU contention will skew the results.
 - `uai`: the protocol front end
 - `tools`: the self-play match harness (`Match`, `UaiClient`, `Elo`) and the training pipeline (`GenData` generates self-play positions, `PairFit` trains the pair patterns, `Teacher`, `Distill` and `PatternFit` fit the local-environment table to another engine's scores)
 - `scripts`: `outside_engines.sh` plays the standard matches against TikTaxx, Funes and Moonbird
+- `docs/training.md` and `scripts/train.sh`: how the evaluation is learned from the engine's own games, step by step, and how to repeat it.
 
 ## License
 

@@ -146,6 +146,10 @@ public final class GenData {
         final AtomicInteger sampleIds = new AtomicInteger();
         AtomicInteger nextGame = new AtomicInteger();
         AtomicInteger positions = new AtomicInteger();
+        // Games finish in any order but are written in the order of their numbers, so that a seed gives the same file for any
+        // number of threads.
+        final java.util.TreeMap<Integer, byte[]> pending = new java.util.TreeMap<>();
+        final int[] nextToWrite = {0};
         long start = System.nanoTime();
         try (DataOutputStream file = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(out), 1 << 20))) {
             List<Thread> pool = new ArrayList<>();
@@ -160,8 +164,12 @@ public final class GenData {
                                         fSelectProb, fMaxSelect, fMin, fMax)
                                 : playGame(g, searchEvaluator, recordedEvaluator, tt, rnd, fNodes, fMin, fMax);
                         synchronized (file) {
+                            pending.put(g, game);
                             try {
-                                file.write(game);
+                                while (!pending.isEmpty() && pending.firstKey() == nextToWrite[0]) {
+                                    file.write(pending.pollFirstEntry().getValue());
+                                    nextToWrite[0]++;
+                                }
                             } catch (IOException e) {
                                 throw new IllegalStateException(e);
                             }
