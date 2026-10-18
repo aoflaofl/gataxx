@@ -62,44 +62,20 @@ public final class UaiEngine {
     private int evalRing1;
     private int evalCohesion = DEFAULT_EVAL_COHESION;
     private int pvs = 1;
-    private int nullMove;
-    private int futility;
-    private int futilityMargin = 48;
-    private int futilityDepth = 2;
     private int lmr = 1;
     private int lmrMoves = 3;
     private int lmrMinDepth = 4;
     private int lmrDeep = 6;
-    private int nullR = 2;
-    private int nullMinEmpties = 12;
     private int evalThreat;
     private int quiesceMinCaptures = DEFAULT_QUIESCE_MIN_CAPTURES;
     private int quiesceJumpCut = 1;
-    private int quiesceJumpCutFromPly;
     private int jumpCut = Position.JUMPS_CUT_QUIET_DOMINATED;
     private int jumpCutMinEmpties = 12;
-    private int jumpCutNear;
     private int iirMinDepth = 3;
     private int futilityReduction = 24;
-    private int futilityKeepZero;
-    private int lmrHalfLife;
-    private int lmrFormulaMinMove = 7;
-    private int lmrFormulaSub;
-    private int nullStyle;
-    private int nullDepthSub = 4;
-    private int nullDepthDiv = 2;
-    private int nullMinTargets = 11;
-    private int ttNarrow;
-    private int evalCache;
-    private int aspiration;
-    private int quiesceDelta;
-    private int historyWeight;
-    private int historyPenaltyDiv = 24;
-    private int orderEdgeBonus = 1;
     private String pairFile = "";
     private int pairBlend = 100;
     private int partialIterations = 1;
-    private int jumpCutNearDepth;
     private String patternFile = "";
     private int patternBlend = 0;
     private int patternMargin = 128;
@@ -171,9 +147,6 @@ public final class UaiEngine {
                     send("option name EvalThreat type spin default 0 min -64 max 64");
                     send("option name EvalFade type spin default 0 min 0 max 49");
                     send("option name Pvs type spin default 1 min 0 max 1");
-                    send("option name Futility type spin default 0 min 0 max 1");
-                    send("option name FutilityMargin type spin default 48 min 0 max 1000");
-                    send("option name FutilityDepth type spin default 2 min 1 max 6");
                     send("option name PatternFile type string default <empty>");
                     send("option name PatternBlend type spin default 0 min 0 max 100");
                     send("option name PatternMargin type spin default 128 min 0 max 2000");
@@ -182,38 +155,17 @@ public final class UaiEngine {
                     send("option name PairBlend type spin default 100 min 0 max 300");
                     send("option name IirMinDepth type spin default 3 min 0 max 20");
                     send("option name FutilityReduction type spin default 24 min 0 max 500");
-                    send("option name FutilityKeepZero type spin default 0 min 0 max 1");
-                    send("option name LmrHalfLife type spin default 0 min 0 max 1000");
-                    send("option name LmrFormulaMinMove type spin default 7 min 1 max 40");
-                    send("option name LmrFormulaSub type spin default 0 min 0 max 10");
-                    send("option name NullStyle type spin default 0 min 0 max 1");
-                    send("option name NullDepthSub type spin default 4 min 0 max 20");
-                    send("option name NullDepthDiv type spin default 2 min 1 max 20");
-                    send("option name NullMinTargets type spin default 11 min 0 max 49");
-                    send("option name TtNarrow type spin default 0 min 0 max 1");
-                    send("option name EvalCache type spin default 0 min 0 max 1");
-                    send("option name Aspiration type spin default 0 min 0 max 1000");
-                    send("option name QuiesceDelta type spin default 0 min 0 max 2000");
-                    send("option name HistoryWeight type spin default 0 min 0 max 100");
-                    send("option name HistoryPenaltyDiv type spin default 24 min 1 max 1000");
-                    send("option name OrderEdgeBonus type spin default 1 min 0 max 1");
                     send("option name PartialIterations type spin default 1 min 0 max 1");
                     send("option name Lmr type spin default 1 min 0 max 1");
                     send("option name LmrMoves type spin default 3 min 1 max 40");
                     send("option name LmrMinDepth type spin default 4 min 2 max 20");
                     send("option name LmrDeepMoves type spin default 6 min 0 max 40");
-                    send("option name NullMove type spin default 0 min 0 max 1");
-                    send("option name NullR type spin default 2 min 1 max 6");
-                    send("option name NullMinEmpties type spin default 12 min 0 max 49");
                     send("option name QuiesceMinCaptures type spin default " + DEFAULT_QUIESCE_MIN_CAPTURES + " min 0 max 8");
                     send("option name QuiesceMaxPly type spin default " + DEFAULT_QUIESCE_MAX_PLY
                             + " min 0 max " + Searcher.MAX_QUIESCENCE_PLY);
                     send("option name QuiesceJumpCut type spin default 1 min 0 max 2");
-                    send("option name QuiesceJumpCutFromPly type spin default 0 min 0 max 16");
                     send("option name JumpCut type spin default 3 min 0 max 3");
                     send("option name JumpCutMinEmpties type spin default 12 min 0 max 49");
-                    send("option name JumpCutNear type spin default 0 min 0 max 3");
-                    send("option name JumpCutNearDepth type spin default 0 min 0 max 60");
                     send("option name TimeModel type spin default 1 min 0 max 1");
                     send("option name TimeSoft type spin default 40 min 5 max 200");
                     send("option name TimeHard type spin default 30 min 10 max 100");
@@ -310,12 +262,6 @@ public final class UaiEngine {
             evalThreat = spinValue(name, value, -64, 64);
         } else if (name.equalsIgnoreCase("Pvs")) {
             pvs = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("Futility")) {
-            futility = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("FutilityMargin")) {
-            futilityMargin = spinValue(name, value, 0, 1000);
-        } else if (name.equalsIgnoreCase("FutilityDepth")) {
-            futilityDepth = spinValue(name, value, 1, 6);
         } else if (name.equalsIgnoreCase("PatternFile")) {
             patternFile = value.equals("<empty>") ? "" : value;
             patternEvaluatorFor(new FeatureEvaluator(new Weights(FeatureEvaluator.SCALE, 0, 0, 0, 0)), 0.5); // validates the file now
@@ -326,36 +272,6 @@ public final class UaiEngine {
             newEvaluator(); // validates the file now
         } else if (name.equalsIgnoreCase("PairBlend")) {
             pairBlend = spinValue(name, value, 0, 300);
-        } else if (name.equalsIgnoreCase("FutilityKeepZero")) {
-            futilityKeepZero = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("LmrHalfLife")) {
-            lmrHalfLife = spinValue(name, value, 0, 1000);
-        } else if (name.equalsIgnoreCase("LmrFormulaMinMove")) {
-            lmrFormulaMinMove = spinValue(name, value, 1, 40);
-        } else if (name.equalsIgnoreCase("LmrFormulaSub")) {
-            lmrFormulaSub = spinValue(name, value, 0, 10);
-        } else if (name.equalsIgnoreCase("NullStyle")) {
-            nullStyle = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("NullDepthSub")) {
-            nullDepthSub = spinValue(name, value, 0, 20);
-        } else if (name.equalsIgnoreCase("NullDepthDiv")) {
-            nullDepthDiv = spinValue(name, value, 1, 20);
-        } else if (name.equalsIgnoreCase("Aspiration")) {
-            aspiration = spinValue(name, value, 0, 1000);
-        } else if (name.equalsIgnoreCase("EvalCache")) {
-            evalCache = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("QuiesceDelta")) {
-            quiesceDelta = spinValue(name, value, 0, 2000);
-        } else if (name.equalsIgnoreCase("TtNarrow")) {
-            ttNarrow = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("HistoryWeight")) {
-            historyWeight = spinValue(name, value, 0, 100);
-        } else if (name.equalsIgnoreCase("HistoryPenaltyDiv")) {
-            historyPenaltyDiv = spinValue(name, value, 1, 1000);
-        } else if (name.equalsIgnoreCase("OrderEdgeBonus")) {
-            orderEdgeBonus = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("NullMinTargets")) {
-            nullMinTargets = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("FutilityReduction")) {
             futilityReduction = spinValue(name, value, 0, 500);
         } else if (name.equalsIgnoreCase("IirMinDepth")) {
@@ -374,26 +290,14 @@ public final class UaiEngine {
             lmrMinDepth = spinValue(name, value, 2, 20);
         } else if (name.equalsIgnoreCase("LmrDeepMoves")) {
             lmrDeep = spinValue(name, value, 0, 40);
-        } else if (name.equalsIgnoreCase("NullMove")) {
-            nullMove = spinValue(name, value, 0, 1);
-        } else if (name.equalsIgnoreCase("NullR")) {
-            nullR = spinValue(name, value, 1, 6);
-        } else if (name.equalsIgnoreCase("NullMinEmpties")) {
-            nullMinEmpties = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("EvalFade")) {
             evalFade = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("QuiesceMinCaptures")) {
             quiesceMinCaptures = spinValue(name, value, 0, 8);
         } else if (name.equalsIgnoreCase("QuiesceJumpCut")) {
             quiesceJumpCut = spinValue(name, value, 0, 2);
-        } else if (name.equalsIgnoreCase("QuiesceJumpCutFromPly")) {
-            quiesceJumpCutFromPly = spinValue(name, value, 0, 16);
         } else if (name.equalsIgnoreCase("JumpCut")) {
             jumpCut = spinValue(name, value, 0, 3);
-        } else if (name.equalsIgnoreCase("JumpCutNear")) {
-            jumpCutNear = spinValue(name, value, 0, 3);
-        } else if (name.equalsIgnoreCase("JumpCutNearDepth")) {
-            jumpCutNearDepth = spinValue(name, value, 0, 60);
         } else if (name.equalsIgnoreCase("JumpCutMinEmpties")) {
             jumpCutMinEmpties = spinValue(name, value, 0, 49);
         } else if (name.equalsIgnoreCase("PairMargin")) {
@@ -562,26 +466,15 @@ public final class UaiEngine {
     private Searcher newSearcher(Evaluator evaluator) {
         Searcher s = new Searcher(evaluator, tt);
         s.setQuiescence(quiesceMinCaptures, quiesceMaxPly);
-        s.setQuiescenceJumpMode(quiesceJumpCut, quiesceJumpCutFromPly);
-        s.setJumpMode(jumpCut, jumpCutMinEmpties, jumpCutNear, jumpCutNearDepth);
+        s.setQuiescenceJumpMode(quiesceJumpCut);
+        s.setJumpMode(jumpCut, jumpCutMinEmpties);
         s.setIir(iirMinDepth);
         s.setFutilityReduction(futilityReduction);
-        s.setFutilityKeepZero(futilityKeepZero == 1);
-        s.setLmrFormula(lmrHalfLife, lmrFormulaMinMove, lmrFormulaSub);
-        s.setNullStyle(nullStyle, nullDepthSub, nullDepthDiv, nullMinTargets);
-        s.setTtNarrow(ttNarrow == 1);
-        s.setEvalCache(evalCache == 1);
-        s.setAspiration(aspiration);
-        s.setQuiescenceDelta(quiesceDelta);
-        s.setHistory(historyWeight, historyPenaltyDiv);
-        s.setOrderEdgeBonus(orderEdgeBonus == 1);
         s.setPartialIterations(partialIterations == 1);
         s.setDeferMinDepth(deferMinDepth);
         s.setPvs(pvs == 1);
-        s.setNullMove(nullMove == 1, nullR, nullMinEmpties);
         s.setLmr(lmr == 1, lmrMoves, lmrMinDepth);
         s.setLmrDeep(lmrDeep);
-        s.setFutility(futility == 1, futilityMargin, futilityDepth, FeatureEvaluator.SCALE);
         return s;
     }
 

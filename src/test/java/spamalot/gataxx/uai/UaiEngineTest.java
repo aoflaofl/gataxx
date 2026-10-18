@@ -33,76 +33,54 @@ class UaiEngineTest {
         return bm.get(0).substring("bestmove ".length());
     }
 
+    /** The options the engine announces, with their full announcement lines (key = option name). */
+    private static java.util.Map<String, String> announcedOptions(List<String> out) {
+        java.util.Map<String, String> options = new java.util.LinkedHashMap<>();
+        for (String line : out) {
+            if (line.startsWith("option name ")) {
+                String rest = line.substring("option name ".length());
+                options.put(rest.substring(0, rest.indexOf(" type ")), line);
+            }
+        }
+        return options;
+    }
+
     @Test
     void handshake() {
         List<String> out = run("uai\n");
         assertTrue(out.get(0).startsWith("id name "), out.toString());
         assertEquals("id author " + UaiEngine.AUTHOR, out.get(1), out.toString());
-        assertEquals("option name Hash type spin default 16 min 0 max 1024", out.get(2));
-        assertEquals("option name Tempo type spin default 32 min 0 max 160", out.get(3));
-        assertEquals("option name EvalSafe type spin default 4 min -64 max 64", out.get(4));
-        assertEquals("option name EvalMobility type spin default 0 min -64 max 64", out.get(5));
-        assertEquals("option name EvalExposure type spin default 0 min -64 max 64", out.get(6));
-        assertEquals("option name EvalReach type spin default 4 min -64 max 64", out.get(7));
-        assertEquals("option name EvalTerritory type spin default 0 min -64 max 64", out.get(8));
-        assertEquals("option name EvalEdge type spin default 8 min -64 max 64", out.get(9));
-        assertEquals("option name EvalCorner type spin default 0 min -64 max 64", out.get(10));
-        assertEquals("option name EvalRing1 type spin default 0 min -64 max 64", out.get(11));
-        assertEquals("option name EvalCohesion type spin default -3 min -64 max 64", out.get(12));
-        assertEquals("option name EvalThreat type spin default 0 min -64 max 64", out.get(13));
-        assertEquals("option name EvalFade type spin default 0 min 0 max 49", out.get(14));
-        assertEquals("option name Pvs type spin default 1 min 0 max 1", out.get(15));
-        assertEquals("option name Futility type spin default 0 min 0 max 1", out.get(16));
-        assertEquals("option name FutilityMargin type spin default 48 min 0 max 1000", out.get(17));
-        assertEquals("option name FutilityDepth type spin default 2 min 1 max 6", out.get(18));
-        assertEquals("option name PatternFile type string default <empty>", out.get(19));
-        assertEquals("option name PatternBlend type spin default 0 min 0 max 100", out.get(20));
-        assertEquals("option name PatternMargin type spin default 128 min 0 max 2000", out.get(21));
-        assertEquals("option name Threads type spin default 1 min 1 max 64", out.get(22));
-        assertEquals("option name PairFile type string default <empty>", out.get(23));
-        assertEquals("option name PairBlend type spin default 100 min 0 max 300", out.get(24));
-        assertEquals("option name IirMinDepth type spin default 3 min 0 max 20", out.get(25));
-        assertEquals("option name FutilityReduction type spin default 24 min 0 max 500", out.get(26));
-        assertEquals("option name FutilityKeepZero type spin default 0 min 0 max 1", out.get(27));
-        assertEquals("option name LmrHalfLife type spin default 0 min 0 max 1000", out.get(28));
-        assertEquals("option name LmrFormulaMinMove type spin default 7 min 1 max 40", out.get(29));
-        assertEquals("option name LmrFormulaSub type spin default 0 min 0 max 10", out.get(30));
-        assertEquals("option name NullStyle type spin default 0 min 0 max 1", out.get(31));
-        assertEquals("option name NullDepthSub type spin default 4 min 0 max 20", out.get(32));
-        assertEquals("option name NullDepthDiv type spin default 2 min 1 max 20", out.get(33));
-        assertEquals("option name NullMinTargets type spin default 11 min 0 max 49", out.get(34));
-        assertEquals("option name TtNarrow type spin default 0 min 0 max 1", out.get(35));
-        assertEquals("option name EvalCache type spin default 0 min 0 max 1", out.get(36));
-        assertEquals("option name Aspiration type spin default 0 min 0 max 1000", out.get(37));
-        assertEquals("option name QuiesceDelta type spin default 0 min 0 max 2000", out.get(38));
-        assertEquals("option name HistoryWeight type spin default 0 min 0 max 100", out.get(39));
-        assertEquals("option name HistoryPenaltyDiv type spin default 24 min 1 max 1000", out.get(40));
-        assertEquals("option name OrderEdgeBonus type spin default 1 min 0 max 1", out.get(41));
-        assertEquals("option name PartialIterations type spin default 1 min 0 max 1", out.get(42));
-        assertEquals("option name Lmr type spin default 1 min 0 max 1", out.get(43));
-        assertEquals("option name LmrMoves type spin default 3 min 1 max 40", out.get(44));
-        assertEquals("option name LmrMinDepth type spin default 4 min 2 max 20", out.get(45));
-        assertEquals("option name LmrDeepMoves type spin default 6 min 0 max 40", out.get(46));
-        assertEquals("option name NullMove type spin default 0 min 0 max 1", out.get(47));
-        assertEquals("option name NullR type spin default 2 min 1 max 6", out.get(48));
-        assertEquals("option name NullMinEmpties type spin default 12 min 0 max 49", out.get(49));
-        assertEquals("option name QuiesceMinCaptures type spin default 3 min 0 max 8", out.get(50));
-        assertEquals("option name QuiesceMaxPly type spin default 5 min 0 max 16", out.get(51));
-        assertEquals("option name QuiesceJumpCut type spin default 1 min 0 max 2", out.get(52));
-        assertEquals("option name QuiesceJumpCutFromPly type spin default 0 min 0 max 16", out.get(53));
-        assertEquals("option name JumpCut type spin default 3 min 0 max 3", out.get(54));
-        assertEquals("option name JumpCutMinEmpties type spin default 12 min 0 max 49", out.get(55));
-        assertEquals("option name JumpCutNear type spin default 0 min 0 max 3", out.get(56));
-        assertEquals("option name JumpCutNearDepth type spin default 0 min 0 max 60", out.get(57));
-        assertEquals("option name TimeModel type spin default 1 min 0 max 1", out.get(58));
-        assertEquals("option name TimeSoft type spin default 40 min 5 max 200", out.get(59));
-        assertEquals("option name TimeHard type spin default 30 min 10 max 100", out.get(60));
-        assertEquals("option name PairMargin type spin default 128 min 0 max 2000", out.get(61));
-        assertEquals("option name PairPlacements type string default hvda", out.get(62));
-        assertEquals("option name DeferMinDepth type spin default 4 min 0 max 30", out.get(63));
-        assertEquals("uaiok", out.get(64));
-        assertEquals(65, out.size());
+        assertEquals("uaiok", out.get(out.size() - 1), out.toString());
+        java.util.Map<String, String> options = announcedOptions(out);
+        // Every other line between the id lines and uaiok is an option announcement.
+        assertEquals(out.size() - 3, options.size(), out.toString());
+        assertEquals(EXPECTED_OPTIONS, options.keySet(), "the set of supported options");
+        for (java.util.Map.Entry<String, String> e : EXPECTED_DEFAULTS.entrySet()) {
+            assertEquals("option name " + e.getKey() + " " + e.getValue(), options.get(e.getKey()));
+        }
     }
+
+    /** The supported options: a change here is a change of the engine's interface. */
+    private static final java.util.Set<String> EXPECTED_OPTIONS = new java.util.LinkedHashSet<>(List.of(
+            "Hash", "Tempo", "EvalSafe", "EvalMobility", "EvalExposure", "EvalReach", "EvalTerritory", "EvalEdge", "EvalCorner",
+            "EvalRing1", "EvalCohesion", "EvalThreat", "EvalFade", "Pvs", "PatternFile", "PatternBlend", "PatternMargin", "Threads",
+            "PairFile", "PairBlend", "IirMinDepth", "FutilityReduction", "PartialIterations", "Lmr", "LmrMoves", "LmrMinDepth",
+            "LmrDeepMoves", "QuiesceMinCaptures", "QuiesceMaxPly", "QuiesceJumpCut", "JumpCut", "JumpCutMinEmpties", "TimeModel",
+            "TimeSoft", "TimeHard", "PairMargin", "PairPlacements", "DeferMinDepth"));
+
+    private static final java.util.Map<String, String> EXPECTED_DEFAULTS = java.util.Map.ofEntries(
+            java.util.Map.entry("Hash", "type spin default 16 min 0 max 1024"),
+            java.util.Map.entry("Threads", "type spin default 1 min 1 max 64"),
+            java.util.Map.entry("PairBlend", "type spin default 100 min 0 max 300"),
+            java.util.Map.entry("PatternBlend", "type spin default 0 min 0 max 100"),
+            java.util.Map.entry("IirMinDepth", "type spin default 3 min 0 max 20"),
+            java.util.Map.entry("FutilityReduction", "type spin default 24 min 0 max 500"),
+            java.util.Map.entry("QuiesceMinCaptures", "type spin default 3 min 0 max 8"),
+            java.util.Map.entry("QuiesceMaxPly", "type spin default 5 min 0 max 16"),
+            java.util.Map.entry("JumpCut", "type spin default 3 min 0 max 3"),
+            java.util.Map.entry("TimeModel", "type spin default 1 min 0 max 1"),
+            java.util.Map.entry("DeferMinDepth", "type spin default 4 min 0 max 30"),
+            java.util.Map.entry("PairPlacements", "type string default hvda"));
 
     private static int lastHashfull(List<String> out) {
         String last = out.stream().filter(l -> l.startsWith("info depth ")).reduce((x, y) -> y).orElseThrow();

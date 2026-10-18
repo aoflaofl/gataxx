@@ -57,7 +57,7 @@ public final class GenData {
         s.setPvs(true);
         s.setLmr(true, 3, 4);
         s.setLmrDeep(6);
-        s.setJumpMode(Position.JUMPS_CUT_QUIET_DOMINATED, 12, Position.JUMPS_ALL, 0);
+        s.setJumpMode(Position.JUMPS_CUT_QUIET_DOMINATED, 12);
         s.setIir(3);
         s.setPartialIterations(true);
         return s;
