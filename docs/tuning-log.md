@@ -1226,6 +1226,17 @@ TikTaxx (`95dffff`) and Funes (`dd319f1`) builds as for 1.9.0: TikTaxx 400 games
 seed 7: **+1087 -113, +393.3 +/- 33.7**; Funes 400 games, seed 5150: **+366 -34, +412.8 +/- 61.0**. `bin/Moonbird-native` (`d6a6107`), 1200
 games, seed 7: **+856 -344, +158.4 +/- 21.7** (1.9.0: +60.2).
 
+## Longer time controls and threads, 1.10.0 (2026-10-17, a first look at what a 2.0 would need)
+
+The 1.10.0 jar against `bin/Moonbird-native` (`d6a6107`), random 6-ply openings, colours swapped:
+
+- **1 s per move, one thread each**, Hash 128, 200 games, seed 21: **+142 -58, +155.5 +/- 53.1** (at 100 ms, 1200 games: +158.4 +/- 21.7).
+  The lead does not shrink with ten times the time.
+- **4 threads each, 0.3 s per move**, Hash 256, 120 games, seed 22, two games at a time: **+84 -36, +147.2 +/- 67.8**.
+- **gataxx 4 threads against gataxx 1 thread**, 0.3 s per move, Hash 256 against the default 16 (which favours the 4-thread side),
+  100 games, seed 23: **+58 -42, +56.1 +/- 69.0**. Lazy SMP gains about +56 Elo from four threads here; on the 1.5.0 search the
+  same test gave about +105. The thread scaling is the weakest part of the engine and worth working on.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
