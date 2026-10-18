@@ -1237,6 +1237,28 @@ The 1.10.0 jar against `bin/Moonbird-native` (`d6a6107`), random 6-ply openings,
   100 games, seed 23: **+58 -42, +56.1 +/- 69.0**. Lazy SMP gains about +56 Elo from four threads here; on the 1.5.0 search the
   same test gave about +105. The thread scaling is the weakest part of the engine and worth working on.
 
+## Lazy SMP scaling: put off moves another thread is searching, 2026-10-18
+
+**Measurement.** `ParScale` (a scratch driver running the engine's exact default search on the 16 bench positions, shared 128 MB table)
+to depth 14, three passes per thread count. Raw speed scaled almost perfectly (nodes per second 4.8M, 9.1M, 14.1M, 17.9M, 26.4M, 34M,
+44M for 1, 2, 3, 4, 6, 8, 12 threads), but the **time to depth** did not: 1.4x with 2 threads, only about **1.1x with 3 and 1.2x with
+4**, 1.4x with 6, 1.5x with 8, 1.9x with 12. The main thread's own node count shows why: a single thread needs 19.2M nodes; with any number of
+helpers the main thread still needs 13-15M. The helpers' table entries save it at most 30% of its work, and the total number of nodes
+grows to 3.4 times (4 threads) while the helpers mostly repeat each other's and the main thread's searches.
+
+**Change.** A table of the positions that the threads are searching right now (`InProgress`, 64K slots, shared by all threads of a
+`ParallelSearch`; the idea of the ABDADA algorithm). At a node with at least `DeferMinDepth` plies left (default 4, `0` = off), a move
+other than the first whose position is in the table is put off until the other moves have been tried, then searched in its
+original place of the move order. Entries may be lost or overwritten by other threads; that only costs efficiency, since the table
+only changes the order in which moves are searched. A single-threaded search never creates the table, and `bench 12` is
+unchanged (6,451,687 nodes, checksum 407).
+
+**Result** (time to depth 14, average of three passes): 2 threads 1.4x, **3 threads 1.6x, 4 threads 1.7x, 6 threads 1.9x, 8 threads 2.6x,
+12 threads 3.1x**; the total number of nodes at 8 threads fell from 81-103M to 46-56M. `DeferMinDepth` 2, 3, 4 and 6 all gained; 3-4 were
+best (4 threads: 1.5x, 1.6x, 1.8x, 1.65x; 8 threads: 2.5x, 2.9x, 2.7x, 2.7x), so 4 stays the default. Strength: both engines with 4 threads, Hash 256,
+0.2 s per move, 200 games, seed 31, new build against the released 1.10.0: **+114 -86, +49.0 +/- 48.6**; 4 threads against 1 thread, Hash 256 against 16,
+0.3 s per move, 100 games, seed 23 (the same test as before, which gave +56.1 +/- 69.0): **+64 -36, +100.0 +/- 70.9**.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
