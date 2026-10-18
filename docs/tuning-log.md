@@ -1201,6 +1201,13 @@ round 1 + 2 fit. `bench 12`: 7,344,203 nodes in 1.69 s, **4.35M nodes/s**, check
 2000 games, seed 8001: **+1316 -684, +113.7 +/- 16.0**. Against `bin/Moonbird-native` at 100 ms, Hash 128, 1200 games, seed 7:
 **+840 -360, +147.2 +/- 21.4** (1.9.0: +60.2).
 
+**Round 3 (same day).** 200,000 games searched by the two-round engine (15.46M positions, seed 503). Pooled with rounds 1 and 2
+(46M positions, validation loss 0.5725) against the two-round default, 50 ms, 1200 games, seed 9001: **+17.4 +/- 19.7**; fresh seed
+9002, 2000 games: **+16.0 +/- 15.2** (about +16.5 over 3200 games, LOS 99%). Rounds 2 and 3 pooled without round 1: **+1.7 +/- 19.7**
+(the gain comes from the amount and variety of the pooled data, as before). Embedded. `bench 12`: 6,451,687 nodes in 1.53 s (4.21M nodes/s,
+checksum 407): the nodes per second are 3% lower than the two-round table's, but the better evaluation needs 12% fewer nodes
+to depth 12, so depth 12 is reached 9% sooner. The three rounds gave +87, +26 and +16 Elo: diminishing returns.
+
 ## Not yet measured
 
 - Strength gain per extra ply near depth 8.
