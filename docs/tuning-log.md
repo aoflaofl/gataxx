@@ -1273,3 +1273,13 @@ aspiration windows, history ordering, TT narrowing, the evaluation cache, the qu
 variants, `FutilityKeepZero`, `JumpCutNear`, the zero-weight evaluation features (`EvalMobility`, `EvalExposure`, `EvalTerritory`,
 `EvalCorner`, `EvalRing1`, `EvalThreat`, `EvalFade`) and `PairPlacements`. Play is unchanged (`bench 12` gives the same nodes and
 score checksum as before the cleanup). The measurements above keep their option names; the code is at tag `v1.10.0`.
+
+## 2.0.0 validation (2026-10-18)
+
+Jar built after the cleanup (version string still 1.10.0 during the runs), random 6-ply openings, colours swapped:
+
+- Against the 1.10.0 jar, one thread each, 50 ms, 1200 games, seed 7001: **+618 =1 -581, +10.7 +/- 19.7** (level, as intended).
+- 4 threads each against 1.10.0 with 4 threads, 0.3 s, 400 games, seed 7002: **+209 -191, +15.6 +/- 34.1**.
+- 4 threads against 1 thread (same jar), 0.3 s, 400 games, seed 7003: **+261 -139, +109.5 +/- 35.8** (1.10.0: +56.1 +/- 69.0, other table size).
+- Against `bin/Moonbird-native` (`d6a6107`), Hash 128, 100 ms, 1200 games, seed 7: **+845 =1 -354, +151.0 +/- 21.5** (1.10.0: +158.4).
+- Same, 4 threads each, Hash 256, 0.3 s, 200 games, seed 22: **+140 -60, +147.2 +/- 52.5** (1.10.0: +147.2 +/- 67.8, 120 games).
